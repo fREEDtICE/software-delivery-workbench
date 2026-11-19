@@ -1,0 +1,49 @@
+name: Q0 baseline
+run-name: Q0 baseline · ${{ inputs.scenario || 'normal' }}
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: Controlled scenario to run
+        type: choice
+        options:
+          - normal
+          - wrong-source
+        default: normal
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify Q0 baseline
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12.12'
+      - name: Resolve locked upstream commits
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python tools/verify_upstreams.py
+      - name: Check source version and compiled behavior
+        env:
+          Q0_SCENARIO: ${{ inputs.scenario || 'normal' }}
+        run: python tools/verify_q0.py --scenario "$Q0_SCENARIO"
+      - name: Upload evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: q0-evidence-${{ inputs.scenario || 'normal' }}
+          path: evidence/*.json
+          if-no-files-found: error
+          retention-days: 30

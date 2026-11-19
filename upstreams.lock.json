@@ -1,0 +1,10 @@
+{
+  "multica": {
+    "repository": "multica-ai/multica",
+    "commit": "a36b99db93b055afdc07bee52dc3bc933bdf9c51"
+  },
+  "dsh": {
+    "repository": "deepseek-ai/deepseek-harness",
+    "commit": "39163dd30f703a79079e2d2446545cff3c453738"
+  }
+}
