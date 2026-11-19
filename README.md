@@ -22,6 +22,6 @@ python3 tools/verify_q0.py --scenario wrong-source --report evidence/q0-wrong-so
 
 向 `main` 推送或发起 PR 时自动执行正常场景。可在 Actions 的 **Q0 baseline** 里手动选择 `wrong-source` 复现红灯。即使断言失败，Actions 也保留 JSON 证据，其中包含代码提交、实际源码和产物摘要、预期与实际，以及运行编号。
 
-## Q0 剩余验证
+## Q0 真实运行时验证
 
-接下来用固定的 Multica 和 DSH 跑通真实模型、工作区服务及独立编译集群，验证集群接单后回执丢失时的恢复、数据目的地授权，以及沙箱释放后的接续。第一批受控用例提供可重复执行的验证入口，完整 Q0 以真实入口和独立执行环境的证据为准。
+[独立构建与回执恢复](docs/q0-live-probe.md) 记录了固定版 Multica 后端、DSH 和真实模型的保存结果，以及独立 Linux 执行端的委派、取证和恢复。继续验证完整部署、团队编译集群及数据目的地授权后，再评定完整 Q0。

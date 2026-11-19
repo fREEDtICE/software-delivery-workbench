@@ -1,0 +1,52 @@
+- id: llm-pi-ai
+  config:
+    providers:
+      q0-ollama:
+        apiKeyEnv: Q0_LOCAL_MODEL_TOKEN
+        api: openai-completions
+        baseURL: http://127.0.0.1:11434/v1
+        models:
+          - id: qwen3.5:0.8b
+            contextWindow: 32768
+            maxTokens: 4096
+            input: [text]
+          - id: qwen3:1.7b
+            contextWindow: 32768
+            maxTokens: 4096
+            input: [text]
+- id: tool-bash
+  disabled: true
+- id: tool-pwsh
+  disabled: true
+- id: tool-fs
+  disabled: true
+- id: tool-fs-search
+  disabled: true
+- id: tool-agent-team
+  disabled: true
+- id: tool-subagent
+  disabled: true
+- id: tool-subagent-control
+  disabled: true
+- id: tool-subagent-fork
+  disabled: true
+- id: tool-jobs
+  disabled: true
+- id: tool-web
+  disabled: true
+- id: tool-workflow
+  disabled: true
+- id: tool-skill
+  disabled: true
+- id: tool-plugin-manager
+  disabled: true
+- id: subagent
+  disabled: true
+- id: agent-team
+  disabled: true
+- id: subagent-spawn-in-process
+  disabled: true
+- id: subagent-fork-in-process
+  disabled: true
+- id: tool-goal
+  disabled: true

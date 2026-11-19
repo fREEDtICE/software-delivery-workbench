@@ -1,0 +1,219 @@
+{
+  "scope": "Pinned Multica production DSH backend, standalone test entry, real local model, GitHub-hosted Linux build pool.",
+  "upstreams": {
+    "multica": {
+      "repository": "multica-ai/multica",
+      "commit": "a36b99db93b055afdc07bee52dc3bc933bdf9c51"
+    },
+    "dsh": {
+      "repository": "deepseek-ai/deepseek-harness",
+      "commit": "39163dd30f703a79079e2d2446545cff3c453738"
+    }
+  },
+  "bridge": {
+    "repository": "multica-ai/dsh-multica-runtime",
+    "commit": "571d7c036d15f58ee88c89fd80afb0a6c7f0023c",
+    "probe": {
+      "v": 1,
+      "type": "probe",
+      "runtime": "dsh",
+      "plugin_version": "0.2.0-private.1",
+      "protocol_version": 1
+    },
+    "profile": "single-agent"
+  },
+  "prior_full_profile_error": "DSH_RUNTIME_ERROR: subagents?.waitForChildren is not a function",
+  "normal": {
+    "agent": {
+      "model": "q0-ollama/qwen3:1.7b",
+      "requested_session_id": "",
+      "session_id": "multica-663ea8a8-9ac3-4eb5-a1bf-bd6556fabafa",
+      "status": "completed",
+      "output": "SAVED",
+      "saved_source_sha256": "ddb64b2a8a6af3e1073a88bec93b3064200bcf5d51860e59c1bab9a7d768852c",
+      "usage": {
+        "q0-ollama/qwen3:1.7b": {
+          "InputTokens": 2062,
+          "OutputTokens": 1126,
+          "CacheReadTokens": 2646,
+          "CacheWriteTokens": 0,
+          "CostUSDTicks": 0
+        }
+      },
+      "tool_events": [
+        {
+          "type": "tool-use",
+          "tool": "mcp__workspace__save_source",
+          "call_id": "call_prispody"
+        },
+        {
+          "type": "tool-result",
+          "tool": "mcp__workspace__save_source",
+          "call_id": "call_prispody",
+          "output": "Error: cannot assign to function call here. Maybe you meant '==' instead of '='? (<unknown>, line 1)"
+        },
+        {
+          "type": "tool-use",
+          "tool": "mcp__workspace__save_source",
+          "call_id": "call_qh8tmbav"
+        },
+        {
+          "type": "tool-result",
+          "tool": "mcp__workspace__save_source",
+          "call_id": "call_qh8tmbav",
+          "output": "Saved quote.py at SHA-256 ddb64b2a8a6af3e1073a88bec93b3064200bcf5d51860e59c1bab9a7d768852c"
+        }
+      ]
+    },
+    "external_build": {
+      "request_id": "ab721075c0724a4dab746c6d7d027c27",
+      "source_sha256": "ddb64b2a8a6af3e1073a88bec93b3064200bcf5d51860e59c1bab9a7d768852c",
+      "repository": "fREEDtICE/software-delivery-workbench",
+      "ref": "main",
+      "state": "verified",
+      "run_id": 44477034391,
+      "run_url": "https://github.com/fREEDtICE/software-delivery-workbench/actions/runs/44477034391",
+      "compile_step_count": 1,
+      "external_run_count": 1,
+      "artifact_receipt": {
+        "source_sha256": "ddb64b2a8a6af3e1073a88bec93b3064200bcf5d51860e59c1bab9a7d768852c",
+        "artifact_sha256": "d096362b383d0f2eff87164c92534cecb82fe2f65eefc4b6ab3bd77ea6520e03",
+        "executor_pid": 2225,
+        "case_inputs": [
+          [
+            3,
+            7
+          ],
+          [
+            0,
+            12
+          ],
+          [
+            2,
+            100
+          ]
+        ],
+        "case_results": [
+          21,
+          0,
+          200
+        ],
+        "request_id": "ab721075c0724a4dab746c6d7d027c27",
+        "runner": "github-hosted",
+        "runner_os": "Linux",
+        "run_id": "44477034391",
+        "run_attempt": "1"
+      },
+      "compiler_workflow_commit": "108b794ac3dae0c596b67f5116cc8f4ada31a5d1",
+      "artifact_url": "https://github.com/fREEDtICE/software-delivery-workbench/actions/runs/44477034391/artifacts/14506159331"
+    }
+  },
+  "receipt_loss": {
+    "agent_save": {
+      "model": "q0-ollama/qwen3:1.7b",
+      "requested_session_id": "",
+      "session_id": "multica-bc86fba8-62f5-43fc-bfe7-4f4ebbf0114d",
+      "status": "completed",
+      "output": "SAVED",
+      "saved_source_sha256": "b3c9bedd1a317884586661c6f38c8238e8f7a6b6ee83397031a29df15afb8a33",
+      "usage": {
+        "q0-ollama/qwen3:1.7b": {
+          "InputTokens": 631,
+          "OutputTokens": 691,
+          "CacheReadTokens": 1924,
+          "CacheWriteTokens": 0,
+          "CostUSDTicks": 0
+        }
+      },
+      "tool_events": [
+        {
+          "type": "tool-use",
+          "tool": "mcp__workspace__save_source",
+          "call_id": "call_zzsw5ke9"
+        },
+        {
+          "type": "tool-result",
+          "tool": "mcp__workspace__save_source",
+          "call_id": "call_zzsw5ke9",
+          "output": "Saved quote.py at SHA-256 b3c9bedd1a317884586661c6f38c8238e8f7a6b6ee83397031a29df15afb8a33"
+        }
+      ]
+    },
+    "state_after_exit": {
+      "request_id": "27234621a0d34ac1bcd2ca67ea836f83",
+      "source_sha256": "b3c9bedd1a317884586661c6f38c8238e8f7a6b6ee83397031a29df15afb8a33",
+      "repository": "fREEDtICE/software-delivery-workbench",
+      "ref": "main",
+      "state": "awaiting_receipt"
+    },
+    "recovered_build": {
+      "request_id": "27234621a0d34ac1bcd2ca67ea836f83",
+      "source_sha256": "b3c9bedd1a317884586661c6f38c8238e8f7a6b6ee83397031a29df15afb8a33",
+      "repository": "fREEDtICE/software-delivery-workbench",
+      "ref": "main",
+      "state": "verified",
+      "run_id": 44477133149,
+      "run_url": "https://github.com/fREEDtICE/software-delivery-workbench/actions/runs/44477133149",
+      "compile_step_count": 1,
+      "external_run_count": 1,
+      "artifact_receipt": {
+        "source_sha256": "b3c9bedd1a317884586661c6f38c8238e8f7a6b6ee83397031a29df15afb8a33",
+        "artifact_sha256": "1e363bdd59c400413ca58d5edcd2dd963c3c1ff752dd8593fa14341abc2967b8",
+        "executor_pid": 2188,
+        "case_inputs": [
+          [
+            3,
+            7
+          ],
+          [
+            0,
+            12
+          ],
+          [
+            2,
+            100
+          ]
+        ],
+        "case_results": [
+          21,
+          0,
+          200
+        ],
+        "request_id": "27234621a0d34ac1bcd2ca67ea836f83",
+        "runner": "github-hosted",
+        "runner_os": "Linux",
+        "run_id": "44477133149",
+        "run_attempt": "1"
+      },
+      "compiler_workflow_commit": "108b794ac3dae0c596b67f5116cc8f4ada31a5d1",
+      "artifact_url": "https://github.com/fREEDtICE/software-delivery-workbench/actions/runs/44477133149/artifacts/14506502550"
+    },
+    "agent_resume": {
+      "model": "q0-ollama/qwen3:1.7b",
+      "requested_session_id": "multica-bc86fba8-62f5-43fc-bfe7-4f4ebbf0114d",
+      "session_id": "multica-bc86fba8-62f5-43fc-bfe7-4f4ebbf0114d",
+      "status": "completed",
+      "output": "The external build ID has been successfully confirmed: 44477133149. No further actions required.",
+      "saved_source_sha256": null,
+      "usage": {
+        "q0-ollama/qwen3:1.7b": {
+          "InputTokens": 831,
+          "OutputTokens": 238,
+          "CacheReadTokens": 70,
+          "CacheWriteTokens": 0,
+          "CostUSDTicks": 0
+        }
+      },
+      "tool_events": []
+    },
+    "assertions": {
+      "same_agent_session": true,
+      "working_directory_recreated": true,
+      "agent_acknowledged_original_run": true,
+      "submit_again_rejected": true,
+      "reconcile_twice_same_receipt": true,
+      "sender_exit_code": 75,
+      "actual_compile_step_count": 1
+    }
+  }
+}
