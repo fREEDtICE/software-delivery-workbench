@@ -12,9 +12,13 @@ import tempfile
 import time
 import uuid
 
+from q0_destination import (
+    APPROVED_BUILD_REF, APPROVED_BUILD_REPOSITORY, APPROVED_BUILD_WORKFLOW,
+    BUILD_DESTINATION, Q0_AGENT, Destination, SourceSnapshot, send_source,
+)
 from q0_remote_compile import source_bytes
 
-WORKFLOW = "q0-remote-compile.yml"
+WORKFLOW = APPROVED_BUILD_WORKFLOW
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -80,21 +84,27 @@ def submit(args, journal, state):
     if state["state"] != "saved":
         raise RuntimeError("Request already sent or pending. Reconcile it before attempting any further action.")
     source = (journal.parent / "saved.py").read_bytes()
-    if hashlib.sha256(source).hexdigest() != state["source_sha256"]:
-        raise RuntimeError("Saved source digest changed before submit.")
 
-    # Persist the intent before the external action. A dead sender or lost HTTP
-    # response leaves a request ID that a fresh process can query, never repost.
-    state["state"] = "awaiting_receipt"
-    write(journal, state)
-    subprocess.run(
-        [
-            "gh", "workflow", "run", WORKFLOW, "-R", state["repository"], "--ref", state["ref"],
-            "-f", f"request_id={state['request_id']}",
-            "-f", f"source_sha={state['source_sha256']}",
-            "-f", f"source_base64={base64.b64encode(source).decode()}",
-        ],
-        cwd=ROOT, check=True, stdout=subprocess.DEVNULL,
+    def dispatch(request_id, snapshot):
+        # Persist the intent before the external action. A dead sender or lost
+        # response leaves a request ID that a fresh process can query.
+        state["state"] = "awaiting_receipt"
+        write(journal, state)
+        subprocess.run(
+            [
+                "gh", "workflow", "run", WORKFLOW, "-R", state["repository"], "--ref", state["ref"],
+                "-f", f"request_id={request_id}",
+                "-f", f"source_sha={snapshot.version}",
+                "-f", f"source_base64={base64.b64encode(snapshot.content).decode()}",
+            ],
+            cwd=ROOT, check=True, stdout=subprocess.DEVNULL,
+        )
+
+    send_source(
+        Q0_AGENT,
+        SourceSnapshot(state["source_sha256"], source),
+        Destination(BUILD_DESTINATION, "build.submit", f"{state['repository']}:{WORKFLOW}@{state['ref']}"),
+        state["request_id"], journal.parent / "destination-policy.jsonl", dispatch,
     )
     accepted = wait_for_job(state, completed=False)
     print(f"External runner accepted {state['request_id']} as run {accepted['id']}", flush=True)
@@ -158,8 +168,8 @@ def main():
     actions = parser.add_subparsers(dest="action", required=True)
     save_args = actions.add_parser("save")
     save_args.add_argument("source", type=Path)
-    save_args.add_argument("--repository", default="fREEDtICE/software-delivery-workbench")
-    save_args.add_argument("--ref", default="main")
+    save_args.add_argument("--repository", default=APPROVED_BUILD_REPOSITORY)
+    save_args.add_argument("--ref", default=APPROVED_BUILD_REF)
     send_args = actions.add_parser("submit")
     send_args.add_argument("--lose-receipt", action="store_true")
     actions.add_parser("reconcile")
