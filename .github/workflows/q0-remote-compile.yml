@@ -1,0 +1,44 @@
+name: Q0 remote compile
+run-name: q0-compile ${{ inputs.request_id }}
+on:
+  workflow_dispatch:
+    inputs:
+      request_id:
+        required: true
+        type: string
+      source_sha:
+        required: true
+        type: string
+      source_base64:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  compile:
+    name: Compile saved Q0 source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12.12'
+      - name: Compile once in the hosted runner
+        env:
+          Q0_REQUEST_ID: ${{ inputs.request_id }}
+          Q0_SOURCE_SHA: ${{ inputs.source_sha }}
+          Q0_SOURCE: ${{ inputs.source_base64 }}
+        run: |
+          cd "$RUNNER_TEMP"
+          python "$GITHUB_WORKSPACE/tools/q0_remote_compile.py"
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: q0-build-${{ inputs.request_id }}
+          path: ${{ runner.temp }}/output/
+          if-no-files-found: error
+          retention-days: 30
