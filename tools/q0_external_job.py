@@ -128,6 +128,7 @@ def reconcile(journal, state):
         or receipt["source_sha256"] != state["source_sha256"]
         or receipt["runner"] != "github-hosted"
         or receipt["runner_os"] != "Linux"
+        or receipt["case_results"] != [21, 0, 200]
         or hashlib.sha256((output / "quote.pyc").read_bytes()).hexdigest() != receipt["artifact_sha256"]
     ):
         raise RuntimeError("External artifact provenance failed verification.")

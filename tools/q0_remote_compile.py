@@ -7,9 +7,14 @@ import json
 import os
 from pathlib import Path
 import re
+import subprocess
 
 from compile_fixture import main as compile_file
 import sys
+
+from verify_q0 import EXECUTE_ARTIFACT
+
+CASES = [[3, 7], [0, 12], [2, 100]]
 
 
 def source_bytes(encoded):
@@ -59,7 +64,13 @@ def main():
     compile_file()
     receipt = Path("output/receipt.json")
     data = json.loads(receipt.read_text())
+    results = json.loads(subprocess.check_output(
+        [sys.executable, "-I", "-c", EXECUTE_ARTIFACT, "output/quote.pyc", json.dumps(CASES)],
+        text=True,
+    ))
     data.update(
+        case_inputs=CASES,
+        case_results=results,
         request_id=request_id,
         runner="github-hosted",
         runner_os=os.environ["RUNNER_OS"],
