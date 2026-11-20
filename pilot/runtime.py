@@ -1,6 +1,7 @@
 """Run the pinned Multica/DSH agent and measure its container boundaries."""
 
 import errno
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -63,7 +64,7 @@ def prepare_profile():
 - id: tool-bash""" + disabled)
 
 
-def boundary(lease):
+def boundary():
     mounts = {}
     for line in Path("/proc/self/mountinfo").read_text().splitlines():
         spec, fs = line.split(" - ")
@@ -90,12 +91,20 @@ def boundary(lease):
         except OSError as error:
             direct[name] = "timed_out" if isinstance(error, TimeoutError) else errno.errorcode.get(error.errno, "blocked")
     require("reachable" not in direct.values(), "Runtime reached a private service directly")
-    # Request a disallowed destination with the same short-lived lease used by the agent.
+    status = dict(line.split(":\t", 1) for line in Path("/proc/self/status").read_text().splitlines() if ":\t" in line)
+    require(int(status["CapEff"], 16) == 0 and status["NoNewPrivs"] == "1", "Unexpected runtime privileges")
+    return {"root_read_only": True, "scratch_filesystems": {name: mounts[name] for name in ("/run/q0", "/tmp")},
+            "uid": os.getuid(), "docker_socket": False, "capabilities": status["CapEff"], "no_new_privileges": True,
+            "runtime_env_names": sorted(os.environ), "lease_remaining_seconds": lease_seconds,
+            "allowed_service_health": reachable, "direct_tcp": direct}
+
+
+def assert_destination_denied(lease, source):
     request = Request("http://gateway:8080/v1/chat/completions", headers={
         "Authorization": "Bearer " + lease, "Content-Type": "application/json",
     }, data=json.dumps({
         "model": "pilot-unapproved", "source_class": "public",
-        "messages": [{"role": "user", "content": "def total(quantity, unit_price):\n    return quantity * unit_price\n"}],
+        "messages": [{"role": "user", "content": source.decode()}],
     }).encode())
     try:
         with HTTP.open(request, timeout=10) as response:
@@ -103,17 +112,12 @@ def boundary(lease):
     except HTTPError as error:
         require(error.code == 403 and json.load(error)["error"]["code"] == "source_destination_not_authorized",
                 "Expected model destination policy to block before sending")
-    status = dict(line.split(":\t", 1) for line in Path("/proc/self/status").read_text().splitlines() if ":\t" in line)
-    require(int(status["CapEff"], 16) == 0 and status["NoNewPrivs"] == "1", "Unexpected runtime privileges")
-    return {"root_read_only": True, "scratch_filesystems": {name: mounts[name] for name in ("/run/q0", "/tmp")},
-            "uid": os.getuid(), "docker_socket": False, "capabilities": status["CapEff"], "no_new_privileges": True,
-            "runtime_env_names": sorted(os.environ), "lease_remaining_seconds": lease_seconds,
-            "allowed_service_health": reachable, "direct_tcp": direct, "denied_model_http": 403}
+    print(json.dumps({"denied_model": {"http_status": 403, "source_version": hashlib.sha256(source).hexdigest()}}), flush=True)
 
 
 def main():
     lease = os.environ["WORK_LEASE"]
-    print(json.dumps({"boundary": boundary(lease)}), flush=True)
+    print(json.dumps({"boundary": boundary()}), flush=True)
     prepare_profile()
     lease_file = ROOT / "lease"
     fd = os.open(lease_file, os.O_CREAT | os.O_WRONLY | os.O_EXCL, 0o600)
@@ -132,6 +136,7 @@ def main():
     result = json.loads(run.stdout.replace(lease, "[redacted]"))
     print(json.dumps({"agent": result}), flush=True)
     require(run.returncode == 0 and result["result"]["Status"] == "completed", "Multica/DSH agent did not complete")
+    assert_destination_denied(lease, (ROOT / "saved-source").read_bytes())
 
 
 if __name__ == "__main__":

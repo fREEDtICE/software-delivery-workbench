@@ -10,8 +10,6 @@ import re
 import secrets
 import subprocess
 import time
-from urllib.error import HTTPError
-from urllib.request import ProxyHandler, Request, build_opener
 import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -23,26 +21,11 @@ IMAGES = {
     "service": "q0-pilot-services:local",
 }
 MODEL = "qwen3:1.7b"
-HTTP = build_opener(ProxyHandler({}))
 
 
 def require(condition, message):
     if not condition:
         raise RuntimeError(message)
-
-
-def request(base, path, body=None, token=None, workspace=None):
-    headers = {"Content-Type": "application/json"}
-    if token:
-        headers["Authorization"] = "Bearer " + token
-    if workspace:
-        headers["X-Workspace-ID"] = workspace
-    req = Request(base + path, data=json.dumps(body).encode() if body is not None else None, headers=headers)
-    try:
-        with HTTP.open(req, timeout=45) as response:
-            return json.load(response)
-    except HTTPError as error:
-        raise RuntimeError(f"{path} returned HTTP {error.code}: {error.read(500).decode(errors='replace')}") from None
 
 
 def eventually(check, timeout, label):
@@ -82,8 +65,8 @@ class Pilot:
         self.mask.append(value)
         return value
 
-    def docker(self, *args, timeout=180, check=True):
-        result = subprocess.run([*self.cli, *args], text=True, capture_output=True, timeout=timeout)
+    def docker(self, *args, timeout=180, check=True, stdin=None):
+        result = subprocess.run([*self.cli, *args], text=True, capture_output=True, timeout=timeout, input=stdin)
         if result.returncode and check:
             raise RuntimeError(f"docker {args[0]} failed: {self.redact(result.stderr[-1800:])}")
         return result
@@ -133,10 +116,16 @@ class Pilot:
     def inspect(self, role, form):
         return self.docker("inspect", "--format", form, self.containers[role]).stdout.strip()
 
-    def port(self, role, port):
-        mapped = self.docker("port", self.containers[role], f"{port}/tcp").stdout.strip()
-        require(mapped.startswith("127.0.0.1:") and "\n" not in mapped, "Expected a loopback-only operator port")
-        return "http://" + mapped
+    def request(self, role, path, body=None, token=None, workspace=None, *, health=False):
+        require(role in {"backend", "compiler"}, "Unknown operator API")
+        parameters = {"url": f"http://{role}:8080{path}", "body": body, "token": token, "workspace": workspace}
+        response = json.loads(self.docker("exec", "-i", self.containers["operator"], "python", "/app/operator.py",
+                                          stdin=json.dumps(parameters)).stdout)
+        status = response["status"]
+        if health:
+            return status if status == 200 else None
+        require(200 <= status < 300, f"{path} returned HTTP {status}: {response.get('error', '')}")
+        return response["body"]
 
     def io(self, role, *args, **kwargs):
         return self.docker("exec", self.containers[role], *args, **kwargs).stdout.strip()
@@ -145,14 +134,14 @@ class Pilot:
         log = self.docker("logs", self.containers[role], check=False)
         return [json.loads(line) for line in log.stdout.splitlines() if line.strip().startswith("{")]
 
-    def api_setup(self, base, code):
+    def api_setup(self, code):
         email = self.prefix + "@example.invalid"
-        request(base, "/auth/send-code", {"email": email})
-        token = self.secret(request(base, "/auth/verify-code", {"email": email, "code": code})["token"])
-        workspace = request(base, "/api/workspaces/", {"name": "Q0 Pilot", "slug": self.prefix}, token)["id"]
+        self.request("backend", "/auth/send-code", {"email": email})
+        token = self.secret(self.request("backend", "/auth/verify-code", {"email": email, "code": code})["token"])
+        workspace = self.request("backend", "/api/workspaces/", {"name": "Q0 Pilot", "slug": self.prefix}, token)["id"]
 
         def api(path, body=None):
-            return request(base, path, body, token, workspace)
+            return self.request("backend", path, body, token, workspace)
 
         result = api("/api/daemon/register", {
             "workspace_id": workspace, "daemon_id": str(uuid.uuid4()), "device_name": "Q0 Linux",
@@ -199,13 +188,15 @@ class Pilot:
             "DATABASE_URL": f"postgres://pilot:{pg}@db:5432/pilot?sslmode=disable",
             "JWT_SECRET": self.secret(), "APP_ENV": "development", "PORT": "8080",
             "MULTICA_DEV_VERIFICATION_CODE": code, "DO_NOT_TRACK": "1",
-        }, options=["-p", "127.0.0.1::8080"], command=["sh", "-ec", "/app/migrate up && exec /app/multica-server"])
+        }, command=["sh", "-ec", "/app/migrate up && exec /app/multica-server"])
         self.container("objects", IMAGES["service"], [storage], env={
             "WORKSPACE_OBJECT_KEY": workspace_key, "COMPILER_OBJECT_KEY": compiler_key,
         }, options=["--mount", f"type=volume,src={self.volume('objects')},dst=/data"], command=["objects"])
         self.container("compiler", IMAGES["service"], [storage], env={
             "OBJECT_KEY": compiler_key, "BUILD_KEY": build_key,
-        }, options=["-p", "127.0.0.1::8080"], command=["compiler"])
+        }, command=["compiler"])
+        self.container("operator", IMAGES["service"], [control, storage],
+                       options=["--entrypoint", "python"], command=["-c", "import time; time.sleep(3600)"])
         self.mark("prepare and isolate real model")
         eventually(lambda: self.io("ollama", "ollama", "list", check=False) or None, 45, "Ollama")
         self.io("ollama", "ollama", "pull", MODEL, timeout=540)
@@ -213,19 +204,9 @@ class Pilot:
         self.docker("network", "disconnect", prep, self.containers["ollama"])
         for role in ("model-receiver", "denied-receiver"):
             self.container(role, IMAGES["service"], [model], command=[role])
-        base = self.port("backend", 8080)
-        compiler = self.port("compiler", 8080)
         self.mark("claim a real Multica task")
-        # A startup 503 is expected until database-dependent readiness is available.
-        def health():
-            try:
-                with HTTP.open(base + "/healthz", timeout=3) as response:
-                    return response.status
-            except (OSError, HTTPError):
-                return None
-
-        eventually(health, 180, "Multica health")
-        api, route, work = self.api_setup(base, code)
+        eventually(lambda: self.request("backend", "/healthz", health=True), 180, "Multica health")
+        api, route, work = self.api_setup(code)
 
         lease = self.secret()
         expires = str(int(time.time()) + 600)
@@ -276,17 +257,18 @@ class Pilot:
         require(exit_code == 0, f"Runtime exited with status {exit_code}")
         require(deploy["runtime"]["networks"] == [edge] and all(m["type"] == "tmpfs" for m in deploy["runtime"]["mounts"]),
                 "Runtime network or mount boundary failed")
-        require(not deploy["runtime"]["published_ports"], "Runtime port unexpectedly published")
+        require(not any(service["published_ports"] for service in deploy.values()), "A private service published ports")
 
         saves = self.events("workspace")
         version, = [e["source_version"] for e in saves if e["event"] == "save_confirmed" and e["work"] == work]
+        require(self.record["denied_model"]["source_version"] == version, "Denial probe used different source bytes")
         agent_run = self.record["agent"]
         require(agent_run["result"]["Status"] == "completed" and any(
             e["type"] == "tool-result" and version in e.get("output", "") for e in agent_run["events"]
         ), "Agent did not observe the saved source version")
 
         self.mark("compile the exact saved version and persist the artifact directly")
-        receipt = request(compiler, "/build", {"source_version": version, "work": work}, build_key)
+        receipt = self.request("compiler", "/build", {"source_version": version, "work": work}, build_key)
         artifact = receipt["artifact_sha256"]
         self.record["build_receipt"] = receipt
         require(receipt["source_version"] == version and receipt["case_results"] == [21, 0, 200],

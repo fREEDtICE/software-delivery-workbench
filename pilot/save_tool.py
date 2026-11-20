@@ -33,6 +33,7 @@ def respond(message, lease):
         if response.status != 201:
             raise ValueError("Workspace did not confirm the save")
         version = json.load(response)["saved_version"]
+    Path("/run/q0/saved-source").write_bytes(source)
     return {"content": [{"type": "text", "text": f"Saved quote.py at SHA-256 {version}"}]}
 
 
