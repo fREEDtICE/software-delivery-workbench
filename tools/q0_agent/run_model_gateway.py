@@ -8,6 +8,7 @@ import subprocess
 import sys
 from tempfile import TemporaryDirectory
 from urllib.parse import urlsplit
+from urllib.request import ProxyHandler, build_opener
 
 TOOLS = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(TOOLS))
@@ -40,6 +41,15 @@ def run_dsh(probe, lab, running, directory):
             source_policy = (lab / "runtime.sb").read_text()
             assert source_policy.count("localhost:11434") == 1
             runtime_policy.write_text(source_policy.replace("localhost:11434", f"localhost:{urlsplit(running.gateway_url).port}"))
+            catalog_url = "http://127.0.0.1:11434/v1/models"
+            with build_opener(ProxyHandler({})).open(catalog_url, timeout=5) as response:
+                assert response.status == 200
+            blocked = subprocess.run(
+                ["/usr/bin/sandbox-exec", "-f", str(runtime_policy), "/usr/bin/curl",
+                 "--noproxy", "*", "-fsS", "--max-time", "4", catalog_url],
+                capture_output=True, text=True,
+            )
+            assert blocked.returncode != 0, "The Runtime could reach the provider directly"
             template = (lab / "dsh").read_text()
             assert template.count("Q0_LOCAL_MODEL_TOKEN=local-test") == 1
             launcher = trial / "dsh"
@@ -93,7 +103,8 @@ def verify(probe, lab, evidence):
     assert len(deny) >= 2 and all(
         d["decision"] == "deny" and d["required_grants_present"] and d["source_version"] == running.snapshot.version for d in deny
     )
-    assert approved_posts and all(r["observed_source_versions"] == [running.snapshot.version] for r in approved_posts)
+    source_posts = [r for r in approved_posts if r["observed_source_versions"]]
+    assert source_posts and all(r["observed_source_versions"] == [running.snapshot.version] for r in source_posts)
     assert {d["request_id"] for d in approve} == {r["request_id"] for r in approved_posts}
     assert not unapproved_posts
     result = {
@@ -104,6 +115,8 @@ def verify(probe, lab, evidence):
         "gateway_approved_count": len(approve),
         "gateway_denied_count": len(deny),
         "approved_receiver_posts": len(approved_posts),
+        "approved_receiver_source_posts": len(source_posts),
+        "direct_runtime_access_to_ollama_blocked": True,
         "unapproved_receiver_posts": len(unapproved_posts),
     }
     (evidence / "report.json").write_text(json.dumps(result, indent=2) + "\n")

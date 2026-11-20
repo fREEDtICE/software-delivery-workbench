@@ -1,0 +1,415 @@
+{
+  "source_version": "09d00553415582ebe4dd69250fe4b6fcb5d7cdad2f78a5670f54bbb738913060",
+  "live_real_ollama_gateway": {
+    "report": {
+      "source_version": "09d00553415582ebe4dd69250fe4b6fcb5d7cdad2f78a5670f54bbb738913060",
+      "approved_inference": {
+        "Status": "completed",
+        "Output": "The value of `total(3, 7)` is calculated by multiplying the quantities 3 and 7, which gives **21**. \n\nNo tool calls are necessary for this simple arithmetic operation. \n\n**Answer:** 21",
+        "Error": "",
+        "DurationMs": 2864,
+        "SessionID": "multica-79494856-e990-4672-9f5d-6e30b396f73b",
+        "Usage": {
+          "q0-gateway/q0-approved": {
+            "InputTokens": 158,
+            "OutputTokens": 179,
+            "CacheReadTokens": 537,
+            "CacheWriteTokens": 0,
+            "CostUSDTicks": 0
+          }
+        },
+        "ResumeRejected": false,
+        "ResumeRejectedTransient": false
+      },
+      "denied_inference": {
+        "Status": "failed",
+        "Output": "",
+        "Error": "AUTH: 403: {\"message\":\"source_destination_not_authorized\",\"code\":\"source_destination_not_authorized\"}; dsh stderr: dsh: warning: 1 entry did not activate\nworkflow-ptc (@deepseek-ai/dsh-workflow-ptc): pending (waiting for service: subagents)",
+        "DurationMs": 1054,
+        "SessionID": "multica-2ccf153d-577b-4b5c-abb9-f51f95cea3a0",
+        "Usage": {},
+        "ResumeRejected": false,
+        "ResumeRejectedTransient": false
+      },
+      "unapproved_http_status": 403,
+      "gateway_approved_count": 2,
+      "gateway_denied_count": 3,
+      "approved_receiver_posts": 2,
+      "approved_receiver_source_posts": 1,
+      "direct_runtime_access_to_ollama_blocked": true,
+      "unapproved_receiver_posts": 0
+    },
+    "gateway": [
+      {
+        "action": "model.invoke",
+        "agent": "q0-fixture-agent",
+        "agent_grants": [
+          "build.submit",
+          "model.invoke",
+          "source.read"
+        ],
+        "binding": "http://127.0.0.1:59982/v1/chat/completions",
+        "decision": "allow",
+        "destination": "q0-approved-local-model",
+        "policy_version": "q0-model-gateway-v1",
+        "reason": "source_destination_authorized",
+        "record_type": "source_egress_decision",
+        "request_id": "f39a80a71dd74c1ab252b1a929d91054",
+        "required_grants_present": true,
+        "source_class": "restricted-source",
+        "source_version": "09d00553415582ebe4dd69250fe4b6fcb5d7cdad2f78a5670f54bbb738913060",
+        "timestamp": "2026-11-20T03:00:22.594836+00:00"
+      },
+      {
+        "action": "model.invoke",
+        "agent": "q0-fixture-agent",
+        "agent_grants": [
+          "build.submit",
+          "model.invoke",
+          "source.read"
+        ],
+        "binding": "http://127.0.0.1:59982/v1/chat/completions",
+        "decision": "allow",
+        "destination": "q0-approved-local-model",
+        "policy_version": "q0-model-gateway-v1",
+        "reason": "source_destination_authorized",
+        "record_type": "source_egress_decision",
+        "request_id": "998d1fa74f5f416299ed75a67719a059",
+        "required_grants_present": true,
+        "source_class": "restricted-source",
+        "source_version": "09d00553415582ebe4dd69250fe4b6fcb5d7cdad2f78a5670f54bbb738913060",
+        "timestamp": "2026-11-20T03:00:22.595814+00:00"
+      },
+      {
+        "action": "model.invoke",
+        "agent": "q0-fixture-agent",
+        "agent_grants": [
+          "build.submit",
+          "model.invoke",
+          "source.read"
+        ],
+        "binding": "http://127.0.0.1:59983/v1/chat/completions",
+        "decision": "deny",
+        "destination": "q0-unapproved-model",
+        "policy_version": "q0-model-gateway-v1",
+        "reason": "source_destination_not_authorized",
+        "record_type": "source_egress_decision",
+        "request_id": "35aec49a7115417db425a6e6c67967ed",
+        "required_grants_present": true,
+        "source_class": "restricted-source",
+        "source_version": "09d00553415582ebe4dd69250fe4b6fcb5d7cdad2f78a5670f54bbb738913060",
+        "timestamp": "2026-11-20T03:00:24.954256+00:00"
+      },
+      {
+        "action": "model.invoke",
+        "agent": "q0-fixture-agent",
+        "agent_grants": [
+          "build.submit",
+          "model.invoke",
+          "source.read"
+        ],
+        "binding": "http://127.0.0.1:59983/v1/chat/completions",
+        "decision": "deny",
+        "destination": "q0-unapproved-model",
+        "policy_version": "q0-model-gateway-v1",
+        "reason": "source_destination_not_authorized",
+        "record_type": "source_egress_decision",
+        "request_id": "f805660b6f7a4d29bc9575ca595bfea6",
+        "required_grants_present": true,
+        "source_class": "restricted-source",
+        "source_version": "09d00553415582ebe4dd69250fe4b6fcb5d7cdad2f78a5670f54bbb738913060",
+        "timestamp": "2026-11-20T03:00:24.953521+00:00"
+      },
+      {
+        "action": "model.invoke",
+        "agent": "q0-fixture-agent",
+        "agent_grants": [
+          "build.submit",
+          "model.invoke",
+          "source.read"
+        ],
+        "binding": "http://127.0.0.1:59983/v1/chat/completions",
+        "decision": "deny",
+        "destination": "q0-unapproved-model",
+        "policy_version": "q0-model-gateway-v1",
+        "reason": "source_destination_not_authorized",
+        "record_type": "source_egress_decision",
+        "request_id": "f91dc45116d949f6b1000fbc5d067df2",
+        "required_grants_present": true,
+        "source_class": "restricted-source",
+        "source_version": "09d00553415582ebe4dd69250fe4b6fcb5d7cdad2f78a5670f54bbb738913060",
+        "timestamp": "2026-11-20T03:00:25.043546+00:00"
+      }
+    ],
+    "receivers": [
+      {
+        "destination": "q0-approved-local-model",
+        "method": "GET",
+        "path": "/health"
+      },
+      {
+        "destination": "q0-unapproved-model",
+        "method": "GET",
+        "path": "/health"
+      },
+      {
+        "destination": "q0-approved-local-model",
+        "method": "POST",
+        "observed_source_versions": [
+          "09d00553415582ebe4dd69250fe4b6fcb5d7cdad2f78a5670f54bbb738913060"
+        ],
+        "request_id": "f39a80a71dd74c1ab252b1a929d91054",
+        "requested_model": "qwen3:1.7b"
+      },
+      {
+        "destination": "q0-approved-local-model",
+        "method": "POST",
+        "observed_source_versions": [],
+        "request_id": "998d1fa74f5f416299ed75a67719a059",
+        "requested_model": "qwen3:1.7b"
+      }
+    ]
+  },
+  "approved_hosted_compiler": {
+    "policy": {
+      "action": "build.submit",
+      "agent": "q0-fixture-agent",
+      "agent_grants": [
+        "build.submit",
+        "model.invoke",
+        "source.read"
+      ],
+      "binding": "fREEDtICE/software-delivery-workbench:q0-remote-compile.yml@main",
+      "decision": "allow",
+      "destination": "q0-compile",
+      "policy_version": "q0-restricted-source-v1",
+      "reason": "source_destination_authorized",
+      "record_type": "source_egress_decision",
+      "request_id": "4eca7aa5484c4e15bee25c88f99e30d3",
+      "required_grants_present": true,
+      "source_class": "restricted-source",
+      "source_version": "09d00553415582ebe4dd69250fe4b6fcb5d7cdad2f78a5670f54bbb738913060",
+      "timestamp": "2026-11-20T03:00:21.129952+00:00"
+    },
+    "receipt": {
+      "source_sha256": "09d00553415582ebe4dd69250fe4b6fcb5d7cdad2f78a5670f54bbb738913060",
+      "artifact_sha256": "f18b800c40621268d07cdbd3707f82246d2b7deacbbc8eff11afbd184b13243a",
+      "executor_pid": 2228,
+      "case_inputs": [
+        [
+          3,
+          7
+        ],
+        [
+          0,
+          12
+        ],
+        [
+          2,
+          100
+        ]
+      ],
+      "case_results": [
+        21,
+        0,
+        200
+      ],
+      "request_id": "4eca7aa5484c4e15bee25c88f99e30d3",
+      "runner": "github-hosted",
+      "runner_os": "Linux",
+      "run_id": "44664711007",
+      "run_attempt": "1"
+    },
+    "execution": {
+      "url": "https://github.com/fREEDtICE/software-delivery-workbench/actions/runs/44664711007",
+      "head_sha": "54f65afe00e4a716be82c6231468b76fa9ded0aa",
+      "conclusion": "success",
+      "artifact_url": "https://github.com/fREEDtICE/software-delivery-workbench/actions/runs/44664711007/artifacts/14596443369"
+    }
+  },
+  "ci_normal": {
+    "execution": {
+      "url": "https://github.com/fREEDtICE/software-delivery-workbench/actions/runs/44664642190",
+      "head_sha": "54f65afe00e4a716be82c6231468b76fa9ded0aa",
+      "conclusion": "success",
+      "artifact_url": "https://github.com/fREEDtICE/software-delivery-workbench/actions/runs/44664642190/artifacts/14597456550"
+    },
+    "report": {
+      "status": "PASS",
+      "source_version": "09d00553415582ebe4dd69250fe4b6fcb5d7cdad2f78a5670f54bbb738913060",
+      "approved_status": 200,
+      "unapproved_status": 403,
+      "approved_receiver_posts": 1,
+      "unapproved_receiver_posts": 0,
+      "checks": {
+        "unauthenticated_request_rejected": true,
+        "approved_inference_completed": true,
+        "approved_receiver_observed_saved_version": true,
+        "source_and_model_grants_present": true,
+        "gateway_rejected_unapproved_destination": true,
+        "user_supplied_public_label_did_not_override_scope": true,
+        "unapproved_receiver_observed_zero_posts": true
+      }
+    },
+    "gateway": [
+      {
+        "action": "model.invoke",
+        "agent": "q0-fixture-agent",
+        "agent_grants": [
+          "build.submit",
+          "model.invoke",
+          "source.read"
+        ],
+        "binding": "http://127.0.0.1:33333/v1/chat/completions",
+        "decision": "allow",
+        "destination": "q0-approved-local-model",
+        "policy_version": "q0-model-gateway-v1",
+        "reason": "source_destination_authorized",
+        "record_type": "source_egress_decision",
+        "request_id": "acb11fefc6ce404a9d01f9a02e52d65f",
+        "required_grants_present": true,
+        "source_class": "restricted-source",
+        "source_version": "09d00553415582ebe4dd69250fe4b6fcb5d7cdad2f78a5670f54bbb738913060",
+        "timestamp": "2026-11-20T03:00:09.524152+00:00"
+      },
+      {
+        "action": "model.invoke",
+        "agent": "q0-fixture-agent",
+        "agent_grants": [
+          "build.submit",
+          "model.invoke",
+          "source.read"
+        ],
+        "binding": "http://127.0.0.1:33183/v1/chat/completions",
+        "decision": "deny",
+        "destination": "q0-unapproved-model",
+        "policy_version": "q0-model-gateway-v1",
+        "reason": "source_destination_not_authorized",
+        "record_type": "source_egress_decision",
+        "request_id": "5e12c51d9fc0492d8b08773acab279ee",
+        "required_grants_present": true,
+        "source_class": "restricted-source",
+        "source_version": "09d00553415582ebe4dd69250fe4b6fcb5d7cdad2f78a5670f54bbb738913060",
+        "timestamp": "2026-11-20T03:00:09.553328+00:00"
+      }
+    ],
+    "receivers": [
+      {
+        "destination": "q0-approved-local-model",
+        "method": "GET",
+        "path": "/health"
+      },
+      {
+        "destination": "q0-unapproved-model",
+        "method": "GET",
+        "path": "/health"
+      },
+      {
+        "destination": "q0-approved-local-model",
+        "method": "POST",
+        "observed_source_versions": [
+          "09d00553415582ebe4dd69250fe4b6fcb5d7cdad2f78a5670f54bbb738913060"
+        ],
+        "request_id": "acb11fefc6ce404a9d01f9a02e52d65f",
+        "requested_model": "qwen3:1.7b"
+      }
+    ]
+  },
+  "ci_overbroad_fixture": {
+    "execution": {
+      "url": "https://github.com/fREEDtICE/software-delivery-workbench/actions/runs/44664710886",
+      "head_sha": "54f65afe00e4a716be82c6231468b76fa9ded0aa",
+      "conclusion": "failure",
+      "artifact_url": "https://github.com/fREEDtICE/software-delivery-workbench/actions/runs/44664710886/artifacts/14596478210"
+    },
+    "report": {
+      "status": "FAIL",
+      "source_version": "09d00553415582ebe4dd69250fe4b6fcb5d7cdad2f78a5670f54bbb738913060",
+      "approved_status": 200,
+      "unapproved_status": 200,
+      "approved_receiver_posts": 1,
+      "unapproved_receiver_posts": 1,
+      "checks": {
+        "unauthenticated_request_rejected": true,
+        "approved_inference_completed": true,
+        "approved_receiver_observed_saved_version": true,
+        "source_and_model_grants_present": true,
+        "gateway_rejected_unapproved_destination": false,
+        "user_supplied_public_label_did_not_override_scope": false,
+        "unapproved_receiver_observed_zero_posts": false
+      }
+    },
+    "gateway": [
+      {
+        "action": "model.invoke",
+        "agent": "q0-fixture-agent",
+        "agent_grants": [
+          "build.submit",
+          "model.invoke",
+          "source.read"
+        ],
+        "binding": "http://127.0.0.1:40519/v1/chat/completions",
+        "decision": "allow",
+        "destination": "q0-approved-local-model",
+        "policy_version": "q0-overbroad-fixture",
+        "reason": "source_destination_authorized",
+        "record_type": "source_egress_decision",
+        "request_id": "268ec6a1bef5477484ebc99ef81ec705",
+        "required_grants_present": true,
+        "source_class": "restricted-source",
+        "source_version": "09d00553415582ebe4dd69250fe4b6fcb5d7cdad2f78a5670f54bbb738913060",
+        "timestamp": "2026-11-20T03:00:43.650038+00:00"
+      },
+      {
+        "action": "model.invoke",
+        "agent": "q0-fixture-agent",
+        "agent_grants": [
+          "build.submit",
+          "model.invoke",
+          "source.read"
+        ],
+        "binding": "http://127.0.0.1:39945/v1/chat/completions",
+        "decision": "allow",
+        "destination": "q0-unapproved-model",
+        "policy_version": "q0-overbroad-fixture",
+        "reason": "source_destination_authorized",
+        "record_type": "source_egress_decision",
+        "request_id": "c8f5f42a5c9b4b26871e7772b2bc8890",
+        "required_grants_present": true,
+        "source_class": "restricted-source",
+        "source_version": "09d00553415582ebe4dd69250fe4b6fcb5d7cdad2f78a5670f54bbb738913060",
+        "timestamp": "2026-11-20T03:00:43.701650+00:00"
+      }
+    ],
+    "receivers": [
+      {
+        "destination": "q0-approved-local-model",
+        "method": "GET",
+        "path": "/health"
+      },
+      {
+        "destination": "q0-unapproved-model",
+        "method": "GET",
+        "path": "/health"
+      },
+      {
+        "destination": "q0-approved-local-model",
+        "method": "POST",
+        "observed_source_versions": [
+          "09d00553415582ebe4dd69250fe4b6fcb5d7cdad2f78a5670f54bbb738913060"
+        ],
+        "request_id": "268ec6a1bef5477484ebc99ef81ec705",
+        "requested_model": "qwen3:1.7b"
+      },
+      {
+        "destination": "q0-unapproved-model",
+        "method": "POST",
+        "observed_source_versions": [
+          "09d00553415582ebe4dd69250fe4b6fcb5d7cdad2f78a5670f54bbb738913060"
+        ],
+        "request_id": "c8f5f42a5c9b4b26871e7772b2bc8890",
+        "requested_model": "qwen3.5:0.8b"
+      }
+    ]
+  }
+}

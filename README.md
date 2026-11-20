@@ -25,3 +25,5 @@ python3 tools/verify_q0.py --scenario wrong-source --report evidence/q0-wrong-so
 ## Q0 真实运行时验证
 
 [独立构建与回执恢复](docs/q0-live-probe.md) 记录了固定版 Multica 后端、DSH 和真实模型的保存结果，以及独立 Linux 执行端的委派、取证和恢复。[源码目的地授权](docs/q0-destination.md)记录了授权编译端收到正确版本、未授权模型发送前拒绝及零接收。完整部署和团队编译集群仍需验证。
+
+[真实模型网关复验与 Q1 准入](docs/q0-model-gateway.md)记录了 DSH 实际推理请求的授权、独立接收端证据，以及尚待关闭的 Q0 门禁。
