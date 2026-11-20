@@ -41,7 +41,7 @@ class NoRedirect(HTTPRedirectHandler):
         return None
 
 
-def request(url, method="GET", body=None, *, key=None, work=None, timeout=150):
+def request(url, method="GET", body=None, *, key=None, work=None, timeout=310):
     headers = {}
     if key:
         headers["Authorization"] = "Bearer " + key
@@ -202,9 +202,11 @@ class Handler(BaseHTTPRequestHandler):
             reason="approved_work_model" if allowed else "source_destination_not_authorized")
         if not allowed:
             return self.reply(403, {"error": {"message": "source_destination_not_authorized", "code": "source_destination_not_authorized"}})
+        # This arithmetic fixture is a tool-use check, with a small inference budget.
+        payload = {**body, "model": "qwen3:1.7b", "max_tokens": 512, "temperature": 0,
+                   "reasoning": {"effort": "none"}, "reasoning_effort": "none"}
         content_type, data = request(
-            "http://model-receiver:8080" + CHATS, "POST",
-            json.dumps({**body, "model": "qwen3:1.7b"}).encode(), work=os.environ["WORK_ID"],
+            "http://model-receiver:8080" + CHATS, "POST", json.dumps(payload).encode(), work=os.environ["WORK_ID"],
         )
         self.reply(200, data, content_type)
 
@@ -213,8 +215,9 @@ class Handler(BaseHTTPRequestHandler):
         log("model_received", work=self.headers.get("X-Q0-Work"), body_bytes=len(body))
         if ROLE == "denied-receiver":
             return self.reply(403, {"error": "unexpected_model_route"})
+        start = time.monotonic()
         content_type, response = request("http://ollama:11434" + CHATS, "POST", body)
-        log("model_completed", work=self.headers.get("X-Q0-Work"))
+        log("model_completed", work=self.headers.get("X-Q0-Work"), duration_ms=round(1000 * (time.monotonic() - start)))
         self.reply(200, response, content_type)
 
 

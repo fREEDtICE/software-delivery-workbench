@@ -33,6 +33,7 @@ func main() {
 	destination := flag.String("destination-settings", "", "run the Q0 data destination probe with these trusted settings")
 	promptFile := flag.String("prompt-file", "", "operator-provided prompt for the model gateway probe")
 	sessionRoot := flag.String("session-root", "", "external session directory")
+	timeout := flag.Duration("timeout", 150*time.Second, "maximum duration of the agent run")
 	resume := flag.String("resume", "", "session ID to resume")
 	job := flag.Int64("job", 0, "verified external build ID")
 	flag.Parse()
@@ -69,7 +70,7 @@ func main() {
 	}
 
 	run, err := backend.Execute(context.Background(), prompt, agent.ExecOptions{
-		Cwd: *cwd, Model: *model, Timeout: 150 * time.Second, McpConfig: config, ResumeSessionID: *resume,
+		Cwd: *cwd, Model: *model, Timeout: *timeout, McpConfig: config, ResumeSessionID: *resume,
 	})
 	if err != nil {
 		die(err)

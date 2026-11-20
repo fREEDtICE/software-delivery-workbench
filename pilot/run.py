@@ -234,7 +234,7 @@ class Pilot:
         }, options=["--user", "1000:1000", "--read-only", "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
                     "--tmpfs", "/run/q0:rw,nosuid,nodev,noexec,uid=1000,gid=1000,mode=0700",
                     "--tmpfs", "/tmp:rw,nosuid,nodev,noexec,mode=1777"])
-        exit_code = int(self.docker("wait", runtime, timeout=420).stdout.strip())
+        exit_code = int(self.docker("wait", runtime, timeout=440).stdout.strip())
         output = self.docker("logs", runtime)
         deploy = self.record["services"]
         for role in self.containers:
