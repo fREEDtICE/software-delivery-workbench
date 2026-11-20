@@ -119,7 +119,7 @@ class Pilot:
     def request(self, role, path, body=None, token=None, workspace=None, *, health=False):
         require(role in {"backend", "compiler"}, "Unknown operator API")
         parameters = {"url": f"http://{role}:8080{path}", "body": body, "token": token, "workspace": workspace}
-        response = json.loads(self.docker("exec", "-i", self.containers["operator"], "python", "/app/operator.py",
+        response = json.loads(self.docker("exec", "-i", self.containers["operator"], "python", "/app/operator_request.py",
                                           stdin=json.dumps(parameters)).stdout)
         status = response["status"]
         if health:
