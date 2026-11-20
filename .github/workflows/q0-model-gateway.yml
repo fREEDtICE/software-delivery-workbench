@@ -1,0 +1,48 @@
+name: Q0 model gateway
+run-name: Q0 model gateway · ${{ inputs.scenario || 'normal' }}
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: Model gateway policy scenario
+        type: choice
+        default: normal
+        options:
+          - normal
+          - overbroad-test-policy
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify gateway request authorization and receiver evidence
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12.12'
+      - name: Exercise the model gateway over HTTP
+        env:
+          Q0_SCENARIO: ${{ inputs.scenario || 'normal' }}
+        run: |
+          if [ "$Q0_SCENARIO" = overbroad-test-policy ]; then
+            python tools/verify_q0_model_gateway.py --evidence evidence/q0-model-gateway --overbroad-test-policy
+          else
+            python tools/verify_q0_model_gateway.py --evidence evidence/q0-model-gateway
+          fi
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        if: ${{ always() }}
+        with:
+          name: gateway-evidence-${{ inputs.scenario || 'normal' }}
+          path: evidence/q0-model-gateway/
+          if-no-files-found: error
+          retention-days: 30
