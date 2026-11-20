@@ -1,6 +1,6 @@
 # Q0 隔离试点验收
 
-试点验证一条交付链路。Multica 发出任务，DSH 通过工作区服务保存受控源码。独立编译服务按源码摘要取件并构建，由编译服务把产物直接写入存储。Multica 收到版本和产物摘要后完成任务。
+试点验证一条交付链路。Multica 发出任务，DSH 调用工作区工具保存仓库中的固定源码样本。独立编译服务按源码摘要取件并构建，由编译服务把产物直接写入存储。Multica 收到版本和产物摘要后完成任务。
 
 ```mermaid
 flowchart LR
@@ -41,4 +41,14 @@ python3 pilot/run.py --build
 
 ## 本机复跑证据
 
-[本机部署和接收端记录](q0-pilot-local-evidence.json)来自独立 Linux 虚拟机中的试点复跑。工作区、编译、存储和 Runtime 在虚拟机内各自运行。模型接收端经专用转发连接本机 Ollama，Runtime 对该转发端的直连探测也被网络隔离拦住。
+[本机部署和接收端记录](q0-pilot-local-evidence.json)来自独立 Linux 虚拟机中的试点复跑。Multica、工作区、编译、存储和 Runtime 在虚拟机内各自运行。模型接收端经专用转发连接本机 Ollama，Runtime 对该转发端的直连探测也被网络隔离拦住。
+
+## CI 复跑证据
+
+[Linux CI 运行 #44708111363](https://github.com/fREEDtICE/software-delivery-workbench/actions/runs/44708111363) 在固定提交 `27eb520` 上通过，与本机复跑使用同一份源码。CI 独立启动了 Ollama 模型容器。编译服务在同一台 Linux runner 的独立容器和私有网络中运行。
+
+- Multica 任务 `01a1f842-221f-7d1a-a708-54a4da135fb8` 最终为 `completed`。
+- 工作区、编译读件、网关拒绝用例和存储源码的摘要均为 `b3c9bedd…`。编译服务直存产物 `1e363bdd…`，存储重新计算的摘要一致。
+- Runtime 无持久挂载。对象存储、编译服务、两个模型接收端及 Ollama 对 Runtime 均无可达路由。授权模型完成 3 次请求，同一源码发往未授权模型时网关返回 403，接收端收到 0 次。
+
+[CI 部署和接收端原始记录](q0-pilot-ci-evidence.json)保留完整摘要、运行配置和各服务记录。

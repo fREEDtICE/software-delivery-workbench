@@ -1,0 +1,412 @@
+{
+  "run": "q0-pilot-8a7fd1c0",
+  "started_at": "2026-11-20T09:08:59.369007+00:00",
+  "source_revision": "27eb520640de9e409bb71fe6c263cfa393adfd88",
+  "upstreams": {
+    "multica": {
+      "repository": "multica-ai/multica",
+      "commit": "a36b99db93b055afdc07bee52dc3bc933bdf9c51"
+    },
+    "dsh": {
+      "repository": "deepseek-ai/deepseek-harness",
+      "commit": "39163dd30f703a79079e2d2446545cff3c453738"
+    },
+    "bridge": "571d7c036d15f58ee88c89fd80afb0a6c7f0023c"
+  },
+  "checks": {
+    "source_saved": true,
+    "exact_source_compiled": true,
+    "compiler_direct_store": true,
+    "runtime_boundary": true,
+    "denial_before_send": true
+  },
+  "services": {
+    "db": {
+      "container_id": "9aa7cea6b70f50ff88e4b80f0146fe36207da3caf8dbae38ccf54c84e5fffb6d",
+      "image": "sha256:39d36505873241b90584a61078c0a3af0a226a363854fcc2d722a72ce7a00500",
+      "networks": [
+        "q0-pilot-8a7fd1c0-control"
+      ],
+      "mounts": [
+        {
+          "type": "volume",
+          "destination": "/var/lib/postgresql/data"
+        }
+      ],
+      "published_ports": {}
+    },
+    "ollama": {
+      "container_id": "08b806e044061ab26aade93aca64e606ea6c3571f9897e5be11103e17fcbae54",
+      "image": "sha256:0cab1dbf8bb2a3526530dbb858f8588c9e30e745828af8c8e27575296f8a5261",
+      "networks": [
+        "q0-pilot-8a7fd1c0-model"
+      ],
+      "mounts": [
+        {
+          "type": "volume",
+          "destination": "/root/.ollama"
+        }
+      ],
+      "published_ports": {}
+    },
+    "backend": {
+      "container_id": "86efa699c53f058b02c54d52c2f2ead9831691cc75191b8ea2563f55c0f225f2",
+      "image": "sha256:884e8f6741baa46253cd2b3ac999ed79e4fa5c5a727d83b7f5301d039a5c10c0",
+      "networks": [
+        "q0-pilot-8a7fd1c0-control"
+      ],
+      "mounts": [],
+      "published_ports": {}
+    },
+    "objects": {
+      "container_id": "f82480bf7da44efb66c0a3d9d2e9c63266499ca6c6ad9258a7bef520a437ac66",
+      "image": "sha256:6ce01c14fdc0701e0645a2afc13200ee5962b31f6650071ccb6f53bf3042a798",
+      "networks": [
+        "q0-pilot-8a7fd1c0-storage"
+      ],
+      "mounts": [
+        {
+          "type": "volume",
+          "destination": "/data"
+        }
+      ],
+      "published_ports": {}
+    },
+    "compiler": {
+      "container_id": "c9b4a3b3a81892569785adcae6a33901b0cd5f59bac53334142ba43df5d6df2c",
+      "image": "sha256:6ce01c14fdc0701e0645a2afc13200ee5962b31f6650071ccb6f53bf3042a798",
+      "networks": [
+        "q0-pilot-8a7fd1c0-storage"
+      ],
+      "mounts": [],
+      "published_ports": {}
+    },
+    "operator": {
+      "container_id": "f2b31dee78cf20380d41b77347a0ba1b42bc3876a772fb46758af426790dce60",
+      "image": "sha256:6ce01c14fdc0701e0645a2afc13200ee5962b31f6650071ccb6f53bf3042a798",
+      "networks": [
+        "q0-pilot-8a7fd1c0-control",
+        "q0-pilot-8a7fd1c0-storage"
+      ],
+      "mounts": [],
+      "published_ports": {}
+    },
+    "model-receiver": {
+      "container_id": "f9eba5c1455a6625a5c649c58bf4b08c9a8d1135fcb46b3d5dc714fe609330f6",
+      "image": "sha256:6ce01c14fdc0701e0645a2afc13200ee5962b31f6650071ccb6f53bf3042a798",
+      "networks": [
+        "q0-pilot-8a7fd1c0-model"
+      ],
+      "mounts": [],
+      "published_ports": {}
+    },
+    "denied-receiver": {
+      "container_id": "3cfb1aea5da6b0ac89f5692dbb4525d1aa222a5b98ba86da88e7dd2342b3302e",
+      "image": "sha256:6ce01c14fdc0701e0645a2afc13200ee5962b31f6650071ccb6f53bf3042a798",
+      "networks": [
+        "q0-pilot-8a7fd1c0-model"
+      ],
+      "mounts": [],
+      "published_ports": {}
+    },
+    "workspace": {
+      "container_id": "ec4e6f677c923c0641e4b185e1cc9f16ada53f2817e6b7b6fae50a95805d4601",
+      "image": "sha256:6ce01c14fdc0701e0645a2afc13200ee5962b31f6650071ccb6f53bf3042a798",
+      "networks": [
+        "q0-pilot-8a7fd1c0-edge",
+        "q0-pilot-8a7fd1c0-storage"
+      ],
+      "mounts": [],
+      "published_ports": {}
+    },
+    "gateway": {
+      "container_id": "d80f3e8e24c7d2ed039fdb9749755427800de1035972d91b89d2446e1d2b3660",
+      "image": "sha256:6ce01c14fdc0701e0645a2afc13200ee5962b31f6650071ccb6f53bf3042a798",
+      "networks": [
+        "q0-pilot-8a7fd1c0-edge",
+        "q0-pilot-8a7fd1c0-model"
+      ],
+      "mounts": [],
+      "published_ports": {}
+    },
+    "runtime": {
+      "container_id": "34136cbb912858b914e83b5f25706ce55fcafeb870f455029d134e884bf00dab",
+      "image": "sha256:ae6fef0aea3a19664cc0993a23161bf21498269fa9fad7ece0fcdfe7d8c51e98",
+      "networks": [
+        "q0-pilot-8a7fd1c0-edge"
+      ],
+      "mounts": [],
+      "published_ports": {}
+    }
+  },
+  "stage": "pilot verification passed",
+  "images": {
+    "postgres:17-bookworm": "sha256:39d36505873241b90584a61078c0a3af0a226a363854fcc2d722a72ce7a00500",
+    "ollama/ollama:0.13.5": "sha256:0cab1dbf8bb2a3526530dbb858f8588c9e30e745828af8c8e27575296f8a5261",
+    "q0-pilot-multica:local": "sha256:884e8f6741baa46253cd2b3ac999ed79e4fa5c5a727d83b7f5301d039a5c10c0",
+    "q0-pilot-runtime:local": "sha256:ae6fef0aea3a19664cc0993a23161bf21498269fa9fad7ece0fcdfe7d8c51e98",
+    "q0-pilot-services:local": "sha256:6ce01c14fdc0701e0645a2afc13200ee5962b31f6650071ccb6f53bf3042a798"
+  },
+  "engine": "linux/amd64 28.0.4",
+  "model_inventory": "NAME          ID              SIZE      MODIFIED               \nqwen3:1.7b    8f68893c685c    1.4 GB    Less than a second ago",
+  "backend": {
+    "ready": true,
+    "workspace": "70977b51-4e25-4a23-af6a-bd4eabfdeca2",
+    "runtime": "b1f63da5-dde3-4f5e-a35b-02537cbf5797",
+    "issue": "01a1f842-2213-7705-96aa-581e8f73efeb",
+    "task": "01a1f842-221f-7d1a-a708-54a4da135fb8",
+    "running": true,
+    "final_status": "completed"
+  },
+  "receiver_health": {
+    "objects": 200,
+    "compiler": 200,
+    "workspace": 200,
+    "gateway": 200,
+    "model-receiver": 200,
+    "denied-receiver": 200
+  },
+  "network_internal": {
+    "q0-pilot-8a7fd1c0-edge": true,
+    "q0-pilot-8a7fd1c0-storage": true,
+    "q0-pilot-8a7fd1c0-model": true,
+    "q0-pilot-8a7fd1c0-control": true,
+    "q0-pilot-8a7fd1c0-model-prep": false
+  },
+  "runtime_exit_status": 0,
+  "boundary": {
+    "root_read_only": true,
+    "scratch_filesystems": {
+      "/run/q0": "tmpfs",
+      "/tmp": "tmpfs"
+    },
+    "uid": 1000,
+    "docker_socket": false,
+    "capabilities": "0000000000000000",
+    "no_new_privileges": true,
+    "runtime_env_names": [
+      "HOME",
+      "HOSTNAME",
+      "LC_CTYPE",
+      "LEASE_EXPIRY",
+      "NODE_VERSION",
+      "PATH",
+      "PROBE_ADDRESSES",
+      "WORK_LEASE",
+      "YARN_VERSION"
+    ],
+    "lease_remaining_seconds": 598,
+    "allowed_service_health": {
+      "workspace": 200,
+      "gateway": 200
+    },
+    "direct_tcp": {
+      "objects": "ENETUNREACH",
+      "compiler": "ENETUNREACH",
+      "model-receiver": "ENETUNREACH",
+      "denied-receiver": "ENETUNREACH",
+      "ollama": "ENETUNREACH"
+    }
+  },
+  "agent": {
+    "events": [
+      {
+        "type": "status",
+        "session_id": "multica-15fab7ff-8c60-468b-8d7a-813697c6c8e8"
+      },
+      {
+        "type": "tool-use",
+        "tool": "mcp__workspace__save_source",
+        "call_id": "call_hnkutclt"
+      },
+      {
+        "type": "tool-result",
+        "tool": "mcp__workspace__save_source",
+        "call_id": "call_hnkutclt",
+        "output": "Saved quote.py at SHA-256 b3c9bedd1a317884586661c6f38c8238e8f7a6b6ee83397031a29df15afb8a33"
+      }
+    ],
+    "model": "pilot-gateway/pilot-approved",
+    "requested_session_id": "",
+    "result": {
+      "Status": "completed",
+      "Output": "SAVED",
+      "Error": "",
+      "DurationMs": 83663,
+      "SessionID": "multica-15fab7ff-8c60-468b-8d7a-813697c6c8e8",
+      "Usage": {
+        "pilot-gateway/pilot-approved": {
+          "InputTokens": 1879,
+          "OutputTokens": 24,
+          "CacheReadTokens": 0,
+          "CacheWriteTokens": 0,
+          "CostUSDTicks": 0
+        }
+      },
+      "ResumeRejected": false,
+      "ResumeRejectedTransient": false
+    }
+  },
+  "denied_model": {
+    "http_status": 403,
+    "source_version": "b3c9bedd1a317884586661c6f38c8238e8f7a6b6ee83397031a29df15afb8a33"
+  },
+  "build_receipt": {
+    "source_version": "b3c9bedd1a317884586661c6f38c8238e8f7a6b6ee83397031a29df15afb8a33",
+    "artifact_sha256": "1e363bdd59c400413ca58d5edcd2dd963c3c1ff752dd8593fa14341abc2967b8",
+    "case_results": [
+      21,
+      0,
+      200
+    ],
+    "work": "01a1f842-221f-7d1a-a708-54a4da135fb8"
+  },
+  "receive_storage_sha256": {
+    "source": "b3c9bedd1a317884586661c6f38c8238e8f7a6b6ee83397031a29df15afb8a33",
+    "artifact": "1e363bdd59c400413ca58d5edcd2dd963c3c1ff752dd8593fa14341abc2967b8"
+  },
+  "approved_model_completed": 3,
+  "unapproved_model_received": 0,
+  "status": "passed",
+  "receiver_events": {
+    "objects": [
+      {
+        "actor": "workspace",
+        "bytes": 66,
+        "event": "object_written",
+        "kind": "source",
+        "service": "objects",
+        "sha256": "b3c9bedd1a317884586661c6f38c8238e8f7a6b6ee83397031a29df15afb8a33",
+        "work": "01a1f842-221f-7d1a-a708-54a4da135fb8"
+      },
+      {
+        "actor": "compiler",
+        "event": "object_read",
+        "kind": "source",
+        "service": "objects",
+        "sha256": "b3c9bedd1a317884586661c6f38c8238e8f7a6b6ee83397031a29df15afb8a33",
+        "work": "01a1f842-221f-7d1a-a708-54a4da135fb8"
+      },
+      {
+        "actor": "compiler",
+        "bytes": 239,
+        "event": "object_written",
+        "kind": "artifact",
+        "service": "objects",
+        "sha256": "1e363bdd59c400413ca58d5edcd2dd963c3c1ff752dd8593fa14341abc2967b8",
+        "work": "01a1f842-221f-7d1a-a708-54a4da135fb8"
+      }
+    ],
+    "workspace": [
+      {
+        "event": "save_confirmed",
+        "service": "workspace",
+        "source_version": "b3c9bedd1a317884586661c6f38c8238e8f7a6b6ee83397031a29df15afb8a33",
+        "work": "01a1f842-221f-7d1a-a708-54a4da135fb8"
+      }
+    ],
+    "gateway": [
+      {
+        "classification": "restricted-source",
+        "decision": "allow",
+        "destination": "pilot-approved",
+        "event": "model_destination",
+        "policy_version": "q0-restricted-source-v1",
+        "reason": "approved_work_model",
+        "service": "gateway",
+        "work": "01a1f842-221f-7d1a-a708-54a4da135fb8"
+      },
+      {
+        "classification": "restricted-source",
+        "decision": "allow",
+        "destination": "pilot-approved",
+        "event": "model_destination",
+        "policy_version": "q0-restricted-source-v1",
+        "reason": "approved_work_model",
+        "service": "gateway",
+        "work": "01a1f842-221f-7d1a-a708-54a4da135fb8"
+      },
+      {
+        "classification": "restricted-source",
+        "decision": "allow",
+        "destination": "pilot-approved",
+        "event": "model_destination",
+        "policy_version": "q0-restricted-source-v1",
+        "reason": "approved_work_model",
+        "service": "gateway",
+        "work": "01a1f842-221f-7d1a-a708-54a4da135fb8"
+      },
+      {
+        "classification": "restricted-source",
+        "decision": "deny",
+        "destination": "pilot-unapproved",
+        "event": "model_destination",
+        "policy_version": "q0-restricted-source-v1",
+        "reason": "source_destination_not_authorized",
+        "service": "gateway",
+        "work": "01a1f842-221f-7d1a-a708-54a4da135fb8"
+      }
+    ],
+    "compiler": [
+      {
+        "bytes": 66,
+        "event": "source_received",
+        "service": "compiler",
+        "version": "b3c9bedd1a317884586661c6f38c8238e8f7a6b6ee83397031a29df15afb8a33",
+        "work": "01a1f842-221f-7d1a-a708-54a4da135fb8"
+      },
+      {
+        "artifact_sha256": "1e363bdd59c400413ca58d5edcd2dd963c3c1ff752dd8593fa14341abc2967b8",
+        "case_results": [
+          21,
+          0,
+          200
+        ],
+        "event": "compile_and_direct_store",
+        "service": "compiler",
+        "source_version": "b3c9bedd1a317884586661c6f38c8238e8f7a6b6ee83397031a29df15afb8a33",
+        "work": "01a1f842-221f-7d1a-a708-54a4da135fb8"
+      }
+    ],
+    "model-receiver": [
+      {
+        "body_bytes": 1068,
+        "event": "model_received",
+        "service": "model-receiver",
+        "work": "01a1f842-221f-7d1a-a708-54a4da135fb8"
+      },
+      {
+        "body_bytes": 4341,
+        "event": "model_received",
+        "service": "model-receiver",
+        "work": "01a1f842-221f-7d1a-a708-54a4da135fb8"
+      },
+      {
+        "duration_ms": 15334,
+        "event": "model_completed",
+        "service": "model-receiver",
+        "work": "01a1f842-221f-7d1a-a708-54a4da135fb8"
+      },
+      {
+        "duration_ms": 72700,
+        "event": "model_completed",
+        "service": "model-receiver",
+        "work": "01a1f842-221f-7d1a-a708-54a4da135fb8"
+      },
+      {
+        "body_bytes": 4670,
+        "event": "model_received",
+        "service": "model-receiver",
+        "work": "01a1f842-221f-7d1a-a708-54a4da135fb8"
+      },
+      {
+        "duration_ms": 7958,
+        "event": "model_completed",
+        "service": "model-receiver",
+        "work": "01a1f842-221f-7d1a-a708-54a4da135fb8"
+      }
+    ],
+    "denied-receiver": []
+  },
+  "finished_at": "2026-11-20T09:22:15.033868+00:00"
+}
