@@ -1,16 +1,19 @@
 ARG GO_IMAGE=golang:1.25.3-bookworm
 ARG NODE_IMAGE=node:24.12.0-bookworm
+ARG BACKEND_IMAGE=debian:bookworm-slim
+ARG SERVICES_IMAGE=python:3.12.12-slim-bookworm
 FROM ${GO_IMAGE} AS multica-build
 ARG MULTICA_COMMIT
 WORKDIR /upstream
 RUN curl -fsSL --retry 3 "https://codeload.github.com/multica-ai/multica/tar.gz/${MULTICA_COMMIT}" | tar xz --strip-components=1
 WORKDIR /upstream/server
+ENV GOTOOLCHAIN=go1.26.9
 COPY tools/q0_agent/probe.go /tmp/pilot-probe.go
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-X main.version=q0-pilot -X main.commit=${MULTICA_COMMIT}" -o /bin-out/multica-server ./cmd/server && \
     CGO_ENABLED=0 go build -trimpath -o /bin-out/migrate ./cmd/migrate && \
     CGO_ENABLED=0 go build -trimpath -o /bin-out/pilot-probe /tmp/pilot-probe.go
 
-FROM debian:bookworm-slim AS multica
+FROM ${BACKEND_IMAGE} AS multica
 ARG MULTICA_COMMIT
 LABEL q0.multica.commit=${MULTICA_COMMIT}
 WORKDIR /app
@@ -48,7 +51,7 @@ COPY pilot/runtime.py pilot/save_tool.py /pilot/
 COPY --chmod=0755 pilot/dsh /pilot/dsh
 ENTRYPOINT ["python3", "/pilot/runtime.py"]
 
-FROM python:3.12.12-slim-bookworm AS services
+FROM ${SERVICES_IMAGE} AS services
 WORKDIR /app
 COPY tools/q0_destination.py tools/q0_remote_compile.py tools/compile_fixture.py tools/verify_q0.py /app/
 COPY pilot/services.py /app/

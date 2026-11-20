@@ -131,7 +131,7 @@ def main():
         raise RuntimeError(f"Multica/DSH produced no result (status {run.returncode})")
     result = json.loads(run.stdout.replace(lease, "[redacted]"))
     print(json.dumps({"agent": result}), flush=True)
-    require(run.returncode == 0 and result["result"]["status"] == "completed", "Multica/DSH agent did not complete")
+    require(run.returncode == 0 and result["result"]["Status"] == "completed", "Multica/DSH agent did not complete")
 
 
 if __name__ == "__main__":

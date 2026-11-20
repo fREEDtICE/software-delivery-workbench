@@ -124,7 +124,6 @@ class Pilot:
             args += ["--env", key]
         run = subprocess.run([*self.cli, *args, image, *command], env={**os.environ, **credentials},
                              text=True, capture_output=True, timeout=240)
-        self.docker("inspect", "--format", "{{.Id}}", name, check=False)
         self.containers[role] = name
         require(run.returncode == 0, f"start {role}: {self.redact(run.stderr[-1800:])}")
         for network in networks[1:]:
@@ -167,6 +166,7 @@ class Pilot:
             "title": "Fix the synthetic line subtotal", "description": "Save and build quote.py.",
             "assignee_type": "agent", "assignee_id": agent,
         })["id"]
+        self.record["backend"] = {"ready": True, "workspace": workspace, "runtime": runtime_id, "issue": issue}
         claim = eventually(lambda: api(f"/api/daemon/runtimes/{runtime_id}/tasks/claim", {}).get("task"),
                            35, "Multica issue task claim")
         task = claim["id"]
@@ -174,8 +174,7 @@ class Pilot:
         route = f"/api/daemon/tasks/{task}"
         api(route + "/start", {})
         require(api(route + "/status")["status"] == "running", "Multica task failed to start")
-        self.record["backend"] = {"ready": True, "workspace": workspace, "runtime": runtime_id,
-                                  "issue": issue, "task": task, "running": True}
+        self.record["backend"].update(task=task, running=True)
         return api, route, task
 
     def run(self):
@@ -282,8 +281,8 @@ class Pilot:
         saves = self.events("workspace")
         version, = [e["source_version"] for e in saves if e["event"] == "save_confirmed" and e["work"] == work]
         agent_run = self.record["agent"]
-        require(agent_run["result"]["status"] == "completed" and any(
-            e["type"] == "tool_result" and version in e.get("output", "") for e in agent_run["events"]
+        require(agent_run["result"]["Status"] == "completed" and any(
+            e["type"] == "tool-result" and version in e.get("output", "") for e in agent_run["events"]
         ), "Agent did not observe the saved source version")
 
         self.mark("compile the exact saved version and persist the artifact directly")
@@ -330,6 +329,12 @@ class Pilot:
         for role in ("objects", "workspace", "gateway", "compiler", "model-receiver", "denied-receiver"):
             if role in self.containers:
                 self.record.setdefault("receiver_events", {})[role] = self.events(role)
+        if self.record.get("status") == "failed" and "backend" in self.containers:
+            logs = self.docker("logs", "--tail", "90", self.containers["backend"], check=False)
+            lines = (logs.stdout + logs.stderr).splitlines()
+            # Application logs can contain a generated verification code.
+            lines = [line for line in lines if not re.search(r"code|token|authorization", line, re.I)]
+            self.record["backend_diagnostics"] = lines[-20:]
         self.record["finished_at"] = datetime.now(timezone.utc).isoformat()
         (self.evidence / "deployment.json").write_text(self.redact(json.dumps(self.record, indent=2) + "\n"))
         for role in reversed(self.containers):
