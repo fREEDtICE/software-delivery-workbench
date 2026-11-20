@@ -130,6 +130,8 @@ def main():
     ], env={
         "PATH": os.environ["PATH"], "HOME": str(ROOT / "home"), "TMPDIR": "/tmp",
         "DSH_HOME": str(ROOT / "dsh-home"), "Q0_LOCAL_MODEL_TOKEN": lease,
+        # Load the pinned native extension from the image so scratch remains noexec.
+        "NARB_DISABLE_NATIVE_CACHE": "1",
     }, text=True, capture_output=True, timeout=360)
     if not run.stdout.strip():
         raise RuntimeError(f"Multica/DSH produced no result (status {run.returncode}): " + run.stderr[-3000:].replace(lease, "[redacted]"))
