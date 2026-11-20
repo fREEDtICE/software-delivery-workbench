@@ -48,6 +48,7 @@ COPY --from=multica-build /bin-out/pilot-probe /usr/local/bin/pilot-probe
 FROM runtime-build AS runtime
 COPY tools/q0_agent/profile.patch.yml /pilot/profile.patch.yml
 COPY pilot/runtime.py pilot/save_tool.py /pilot/
+COPY tests/fixtures/quote_current.py /pilot/quote.py
 COPY --chmod=0755 pilot/dsh /pilot/dsh
 ENTRYPOINT ["python3", "/pilot/runtime.py"]
 

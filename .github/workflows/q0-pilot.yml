@@ -6,6 +6,7 @@ on:
     paths:
       - pilot/**
       - tools/q0_agent/**
+      - tests/fixtures/quote_current.py
       - upstreams.lock.json
       - .github/workflows/q0-pilot.yml
   workflow_dispatch:

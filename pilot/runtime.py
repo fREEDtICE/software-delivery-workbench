@@ -123,10 +123,16 @@ def main():
     fd = os.open(lease_file, os.O_CREAT | os.O_WRONLY | os.O_EXCL, 0o600)
     with os.fdopen(fd, "w") as stream:
         stream.write(lease)
+    prompt = ROOT / "prompt"
+    prompt.write_text(
+        "Call the tool mcp__workspace__save_source with an empty JSON object {} now. "
+        "It saves the controlled quote.py for this task. After the tool confirms the saved version, reply SAVED."
+    )
     run = subprocess.run([
         "/usr/local/bin/pilot-probe", "-dsh", "/pilot/dsh", "-model", "pilot-gateway/pilot-approved",
         "-cwd", str(ROOT / "scratch"), "-python", "/usr/bin/python3", "-tool", "/pilot/save_tool.py",
         "-saved", str(lease_file), "-session-root", str(ROOT / "sessions"), "-timeout", "6m",
+        "-prompt-file", str(prompt),
     ], env={
         "PATH": os.environ["PATH"], "HOME": str(ROOT / "home"), "TMPDIR": "/tmp",
         "DSH_HOME": str(ROOT / "dsh-home"), "Q0_LOCAL_MODEL_TOKEN": lease,

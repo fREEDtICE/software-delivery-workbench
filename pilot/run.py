@@ -261,6 +261,8 @@ class Pilot:
 
         saves = self.events("workspace")
         version, = [e["source_version"] for e in saves if e["event"] == "save_confirmed" and e["work"] == work]
+        fixture = (ROOT / "tests/fixtures/quote_current.py").read_bytes()
+        require(version == hashlib.sha256(fixture).hexdigest(), "Workspace saved the wrong fixture bytes")
         require(self.record["denied_model"]["source_version"] == version, "Denial probe used different source bytes")
         agent_run = self.record["agent"]
         require(agent_run["result"]["Status"] == "completed" and any(

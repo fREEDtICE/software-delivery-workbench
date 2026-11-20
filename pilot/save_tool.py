@@ -6,7 +6,7 @@ import sys
 from urllib.request import ProxyHandler, Request, build_opener
 
 
-def respond(message, lease):
+def respond(message, lease, source):
     method = message["method"]
     if method == "initialize":
         return {
@@ -17,17 +17,17 @@ def respond(message, lease):
     if method == "tools/list":
         return {"tools": [{
             "name": "save_source",
-            "description": "Persist the complete Python source for quote.py and return its saved version.",
+            "description": "Save the controlled quote.py snapshot for this pilot task and return its version.",
             "inputSchema": {
-                "type": "object", "properties": {"source": {"type": "string"}},
-                "required": ["source"], "additionalProperties": False,
+                "type": "object", "properties": {}, "additionalProperties": False,
             },
         }]}
     if method == "ping":
         return {}
     if method != "tools/call" or message["params"]["name"] != "save_source":
         raise ValueError("Unsupported workspace tool")
-    source = message["params"]["arguments"]["source"].encode()
+    if message["params"].get("arguments", {}):
+        raise ValueError("The controlled snapshot takes no arguments")
     request = Request("http://workspace:8080/save", data=source, headers={"Authorization": "Bearer " + lease})
     with build_opener(ProxyHandler({})).open(request, timeout=20) as response:
         if response.status != 201:
@@ -39,12 +39,13 @@ def respond(message, lease):
 
 if __name__ == "__main__":
     lease = Path(sys.argv[1]).read_text()
+    source = Path("/pilot/quote.py").read_bytes()
     for line in sys.stdin:
         message = json.loads(line)
         if "id" not in message:
             continue
         try:
-            result = respond(message, lease)
+            result = respond(message, lease, source)
         except (KeyError, OSError, ValueError):
             result = {"isError": True, "content": [{"type": "text", "text": "Workspace request rejected"}]}
         print(json.dumps({"jsonrpc": "2.0", "id": message["id"], "result": result}), flush=True)
