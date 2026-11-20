@@ -1,0 +1,32 @@
+name: Q0 pilot deployment
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - pilot/**
+      - tools/q0_agent/**
+      - upstreams.lock.json
+      - .github/workflows/q0-pilot.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Deploy and verify the isolated pilot
+        run: python3 pilot/run.py --build
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        if: ${{ always() }}
+        with:
+          name: q0-pilot-deployment
+          path: evidence/q0-pilot/
+          if-no-files-found: error
+          retention-days: 30
