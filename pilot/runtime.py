@@ -15,7 +15,7 @@ from urllib.request import ProxyHandler, Request, build_opener
 ROOT = Path("/run/q0")
 BRIDGE = "@multica-ai/dsh-runtime"
 RUNTIME_DEPS = {"@deepseek-ai/dsh-" + name for name in ("agent", "llm", "mcp-client", "session", "subprocess")}
-ALLOWED_ENV = {"PATH", "HOSTNAME", "NODE_VERSION", "YARN_VERSION", "TERM", "HOME",
+ALLOWED_ENV = {"PATH", "HOSTNAME", "NODE_VERSION", "YARN_VERSION", "TERM", "HOME", "LC_CTYPE",
                "WORK_LEASE", "LEASE_EXPIRY", "PROBE_ADDRESSES"}
 HTTP = build_opener(ProxyHandler({}))
 
@@ -132,7 +132,7 @@ def main():
         "DSH_HOME": str(ROOT / "dsh-home"), "Q0_LOCAL_MODEL_TOKEN": lease,
     }, text=True, capture_output=True, timeout=360)
     if not run.stdout.strip():
-        raise RuntimeError(f"Multica/DSH produced no result (status {run.returncode})")
+        raise RuntimeError(f"Multica/DSH produced no result (status {run.returncode}): " + run.stderr[-3000:].replace(lease, "[redacted]"))
     result = json.loads(run.stdout.replace(lease, "[redacted]"))
     print(json.dumps({"agent": result}), flush=True)
     require(run.returncode == 0 and result["result"]["Status"] == "completed", "Multica/DSH agent did not complete")

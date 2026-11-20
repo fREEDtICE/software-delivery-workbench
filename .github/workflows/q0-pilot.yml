@@ -21,6 +21,11 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           persist-credentials: false
+      - name: Make room for the model image on the disposable runner
+        run: |
+          df -h /
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
+          df -h /
       - name: Deploy and verify the isolated pilot
         run: python3 pilot/run.py --build
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
