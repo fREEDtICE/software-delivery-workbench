@@ -276,6 +276,14 @@ class Pilot:
                 and sum(e.get("decision") == "lease_revoked" for e in policy) == 2,
                 "Policy did not record both denied uses of the revoked lease")
 
+    def lookup_from_replacement(self, lease):
+        request_id = self.record["recovery"]["durable_intent"]["request_id"]
+        response = self.docker(
+            "exec", "-i", self.containers["replacement"], "python3", "/pilot/runtime.py", "--recover-receipt",
+            stdin=json.dumps({"lease": lease, "request_id": request_id}),
+        )
+        return json.loads(response.stdout)
+
     def complete_recovered_build(self, path, build_key):
         self.mark("finish the original build and verify duplicate requests return the same result")
         self.request("compiler", path + "/release", {}, build_key)
@@ -309,7 +317,7 @@ class Pilot:
                 self.docker("image", "inspect", "--format", "{{json .Id}}", image).stdout,
             )
         self.record["engine"] = self.docker("version", "--format", "{{.Server.Os}}/{{.Server.Arch}} {{.Server.Version}}").stdout.strip()
-        pg, workspace_key, compiler_key, build_key = (self.secret() for _ in range(4))
+        pg, workspace_key, compiler_key, build_key, build_read_key = (self.secret() for _ in range(5))
         self.container("db", IMAGES["postgres"], [control], env={"POSTGRES_USER": "pilot",
                        "POSTGRES_PASSWORD": pg, "POSTGRES_DB": "pilot"},
                        options=["--mount", f"type=volume,src={self.volume('db')},dst=/var/lib/postgresql/data"])
@@ -327,7 +335,7 @@ class Pilot:
             "WORKSPACE_OBJECT_KEY": workspace_key, "COMPILER_OBJECT_KEY": compiler_key,
         }, options=["--mount", f"type=volume,src={self.volume('objects')},dst=/data"], command=["objects"])
         self.container("compiler", IMAGES["service"], [storage], env={
-            "OBJECT_KEY": compiler_key, "BUILD_KEY": build_key,
+            "OBJECT_KEY": compiler_key, "BUILD_KEY": build_key, "BUILD_READ_KEY": build_read_key,
         }, options=["--mount", f"type=volume,src={self.volume('build-state')},dst=/build-state"], command=["compiler"])
         self.container("operator", IMAGES["service"], [control, storage, policy_net],
                        options=["--entrypoint", "python", "--mount", f"type=volume,src={self.volume('operator')},dst=/state"],
@@ -351,7 +359,8 @@ class Pilot:
             **env, "POLICY_ADMIN_KEY": policy_admin, "WORK_LEASE_SHA256": hashlib.sha256(lease.encode()).hexdigest(),
             "LEASE_EXPIRY": expires,
         }, options=["--mount", f"type=volume,src={self.volume('policy')},dst=/policy-state"], command=["policy"])
-        self.container("workspace", IMAGES["service"], [edge, storage, policy_net], env={**env, "OBJECT_KEY": workspace_key}, command=["workspace"])
+        self.container("workspace", IMAGES["service"], [edge, storage, policy_net],
+                       env={**env, "OBJECT_KEY": workspace_key, "BUILD_READ_KEY": build_read_key}, command=["workspace"])
         self.container("gateway", IMAGES["service"], [edge, model, policy_net], env=env, command=["gateway"])
         def address(role, network, port):
             networks = json.loads(self.inspect(role, "{{json .NetworkSettings.Networks}}"))
@@ -406,7 +415,20 @@ class Pilot:
         require(deploy["replacement"]["networks"] == [edge] and not deploy["replacement"]["mounts"],
                 "Replacement Runtime network or mount boundary failed")
         self.verify_revocation(work, version, policy_admin)
+        fresh_lease = self.secret()
+        recovery = self.record["recovery"]
+        self.mark("issue a read-only lease so the replacement Runtime can recover the build")
+        grant = self.request("policy", "/reissue", {"lease_sha256": hashlib.sha256(fresh_lease.encode()).hexdigest()}, policy_admin)
+        require(grant["work"] == work and grant["capability"] == "build.read", "Unexpected replacement lease scope")
+        recovery["replacement_lease"] = grant
+        observed = self.lookup_from_replacement(fresh_lease)
+        recovery["replacement_lookup_running"] = observed
+        require(observed == recovery["lookup_after_restart"], "Replacement did not recover the running build")
         receipt = self.complete_recovered_build(build_path, build_key)
+        observed = self.lookup_from_replacement(fresh_lease)
+        recovery["replacement_lookup_completed"] = observed
+        require(observed == recovery["duplicate_after_completion"] and observed["receipt"] == receipt,
+                "Replacement Runtime did not retrieve the original completed receipt")
         artifact = receipt["artifact_sha256"]
         self.record["build_receipt"] = receipt
         require(receipt["source_version"] == version and receipt["case_results"] == [21, 0, 200],
@@ -441,7 +463,8 @@ class Pilot:
         self.record["checks"] = {"source_saved": True, "exact_source_compiled": True, "compiler_direct_store": True,
                                  "runtime_boundary": True, "denial_before_send": True,
                                  "runtime_reclaimed_during_build": True, "lost_receipt_recovered": True,
-                                 "exactly_one_pilot_compile": True, "revoked_lease_denied_at_both_edges": True}
+                                 "exactly_one_pilot_compile": True, "revoked_lease_denied_at_both_edges": True,
+                                 "replacement_lease_recovered_original_receipt": True}
         self.record["approved_model_completed"] = len(allowed)
         self.record["unapproved_model_received"] = len(denied)
         self.record["status"] = "passed"

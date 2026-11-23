@@ -126,20 +126,20 @@ class Handler(BaseHTTPRequestHandler):
     def authenticated(self, key):
         return hmac.compare_digest(self.headers.get("Authorization", ""), "Bearer " + key)
 
-    def check_lease(self):
+    def check_lease(self, capability):
         authorization = self.headers.get("Authorization", "")
         token = authorization.removeprefix("Bearer ") if authorization.startswith("Bearer ") else ""
         _, data = request(
-            f"http://policy:{PORT}/check", "POST", json.dumps({"lease_sha256": sha(token.encode())}).encode(),
+            f"http://policy:{PORT}/check", "POST", json.dumps({"lease_sha256": sha(token.encode()), "capability": capability}).encode(),
             key=os.environ["POLICY_CHECK_KEY"], timeout=5,
         )
         result = json.loads(data)
         code = result["decision"]
         if code == "allow":
             return True
-        log("lease_denied", work=os.environ["WORK_ID"], reason=code)
+        log("lease_denied", work=os.environ["WORK_ID"], reason=code, capability=capability)
         error = {"message": code, "code": code} if ROLE == "gateway" else code
-        self.reply(403 if code == "lease_revoked" else 401, {"error": error})
+        self.reply(403 if code in {"lease_revoked", "lease_scope_denied"} else 401, {"error": error})
         return False
 
     def body(self):
@@ -154,10 +154,20 @@ class Handler(BaseHTTPRequestHandler):
         if ROLE == "objects":
             return self.object_request("GET")
         if ROLE == "compiler" and (route := BUILD_ROUTE.fullmatch(self.path)) and not route[2]:
-            if not self.authenticated(os.environ["BUILD_KEY"]):
+            if not (self.authenticated(os.environ["BUILD_KEY"]) or self.authenticated(os.environ["BUILD_READ_KEY"])):
                 return self.reply(401, {"error": "build_credential_required"})
             job = build_jobs.lookup(route[1])
             return self.reply(200 if job else 404, job or {"error": "unknown_build"})
+        if ROLE == "workspace" and (route := BUILD_ROUTE.fullmatch(self.path)) and not route[2]:
+            try:
+                return self.recover_build(route[1])
+            except HTTPError as error:
+                if error.code == 404:
+                    return self.reply(404, {"error": "unknown_build"})
+                self.reply(502, {"error": "build_lookup_failed"})
+            except OSError:
+                self.reply(502, {"error": "build_lookup_failed"})
+            return
         self.reply(404, {"error": "unknown_route"})
 
     def do_PUT(self):
@@ -210,7 +220,7 @@ class Handler(BaseHTTPRequestHandler):
                 if not build_jobs.release(route[1]):
                     return self.reply(409, {"error": "build_is_not_waiting"})
                 return self.reply(200, {"released": True})
-            if ROLE == "policy" and self.path in {"/check", "/revoke"}:
+            if ROLE == "policy" and self.path in {"/check", "/revoke", "/reissue"}:
                 return self.policy_request()
             if ROLE == "gateway" and self.path == CHATS:
                 return self.model_gateway()
@@ -224,7 +234,7 @@ class Handler(BaseHTTPRequestHandler):
             self.reply(502, {"error": "downstream_failed"})
 
     def save_source(self):
-        if not self.check_lease():
+        if not self.check_lease("source.save"):
             return
         source = source_bytes(base64.b64encode(self.body()).decode())
         version = sha(source)
@@ -257,23 +267,43 @@ class Handler(BaseHTTPRequestHandler):
             return
         self.reply(202, job)
 
+    def recover_build(self, request_id):
+        if not self.check_lease("build.read"):
+            return
+        _, data = request(f"http://compiler:{PORT}/builds/{request_id}", key=os.environ["BUILD_READ_KEY"], timeout=5)
+        job = json.loads(data)
+        if job["work"] != os.environ["WORK_ID"]:
+            return self.reply(404, {"error": "unknown_build"})
+        log("build_recovered", work=job["work"], request_id=request_id, build_id=job["build_id"], status=job["status"])
+        self.reply(200, job)
+
     def policy_request(self):
         work = os.environ["WORK_ID"]
-        if self.path == "/revoke":
+        if self.path in {"/revoke", "/reissue"}:
             if not self.authenticated(os.environ["POLICY_ADMIN_KEY"]):
                 return self.reply(401, {"error": "policy_admin_required"})
-            revoked_at = lease_policy.revoke()
-            log("lease_revoked", work=work, revoked_at_ns=revoked_at)
-            return self.reply(200, {"work": work, "revoked_at_ns": revoked_at})
+            if self.path == "/revoke":
+                revoked_at = lease_policy.revoke()
+                log("lease_revoked", work=work, revoked_at_ns=revoked_at)
+                return self.reply(200, {"work": work, "revoked_at_ns": revoked_at})
+            digest = json.loads(self.body())["lease_sha256"]
+            if not DIGEST.fullmatch(digest):
+                raise ValueError("invalid lease digest")
+            expires = lease_policy.reissue(digest)
+            log("lease_reissued", work=work, expires_at=expires, capability="build.read")
+            return self.reply(201, {"work": work, "expires_at": expires, "capability": "build.read"})
         if not self.authenticated(os.environ["POLICY_CHECK_KEY"]):
             return self.reply(401, {"error": "policy_check_credential_required"})
-        digest = json.loads(self.body())["lease_sha256"]
-        decision = lease_policy.decide(hmac.compare_digest(digest, os.environ["WORK_LEASE_SHA256"]))
-        log("lease_check", work=work, decision=decision)
+        body = json.loads(self.body())
+        capability = body["capability"]
+        if capability not in {"source.save", "model.invoke", "build.read"} or not DIGEST.fullmatch(body["lease_sha256"]):
+            raise ValueError("invalid lease check")
+        decision = lease_policy.decide(body["lease_sha256"], capability)
+        log("lease_check", work=work, capability=capability, decision=decision)
         self.reply(200, {"decision": decision})
 
     def model_gateway(self):
-        if not self.check_lease():
+        if not self.check_lease("model.invoke"):
             return
         body = json.loads(self.body())
         model = body["model"]

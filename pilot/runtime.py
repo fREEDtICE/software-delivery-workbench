@@ -141,11 +141,23 @@ def probe_revoked(lease):
     print(json.dumps({"requests": observations, "source_version": hashlib.sha256(source).hexdigest()}), flush=True)
 
 
+def recover_receipt():
+    parameters = json.load(sys.stdin)
+    request = Request("http://workspace:8080/builds/" + parameters["request_id"], headers={
+        "Authorization": "Bearer " + parameters["lease"],
+    })
+    with HTTP.open(request, timeout=10) as response:
+        print(json.dumps(json.load(response)), flush=True)
+
+
 def main():
     lease = os.environ["WORK_LEASE"]
     mode = sys.argv[1:]
     if mode == ["--probe-revoked"]:
         probe_revoked(lease)
+        return
+    if mode == ["--recover-receipt"]:
+        recover_receipt()
         return
     print(json.dumps({"boundary": boundary()}), flush=True)
     if mode == ["--replacement"]:
