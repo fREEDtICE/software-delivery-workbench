@@ -37,7 +37,7 @@ python3 pilot/run.py --build
 
 [Q0 pilot deployment 工作流](https://github.com/fREEDtICE/software-delivery-workbench/actions/workflows/q0-pilot.yml) 使用同一入口。下载该次运行的 `q0-pilot-deployment`，查看 `deployment.json` 中的部署、接收端、Runtime 和任务证据，以及 `images-build.log` 中的构建记录。
 
-本轮限于合成源码、单任务租约和私有容器网络。恢复和撤权在后续验收。
+本轮限于合成源码、单任务租约和私有容器网络。[恢复与撤权复验](q0-pilot-recovery.md)使用同一套部署，覆盖构建中回收 Runtime、找回原任务和主动撤权。
 
 ## 本机复跑证据
 
