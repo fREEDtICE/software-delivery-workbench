@@ -45,7 +45,7 @@ python3 pilot/run.py --build
 
 ## CI 复跑证据
 
-[Linux CI 运行 #44708111363](https://github.com/fREEDtICE/software-delivery-workbench/actions/runs/44708111363) 在固定提交 `27eb520` 上通过，与本机复跑使用同一份源码。CI 独立启动了 Ollama 模型容器。编译服务在同一台 Linux runner 的独立容器和私有网络中运行。
+[Linux CI 运行 #44708111363](https://github.com/fREEDtICE/software-delivery-workbench/actions/runs/44708111363) 在固定提交 `01a1277` 上通过，与本机复跑使用同一份源码。CI 独立启动了 Ollama 模型容器。编译服务在同一台 Linux runner 的独立容器和私有网络中运行。
 
 - Multica 任务 `01a1f842-221f-7d1a-a708-54a4da135fb8` 最终为 `completed`。
 - 工作区、编译读件、网关拒绝用例和存储源码的摘要均为 `b3c9bedd…`。编译服务直存产物 `1e363bdd…`，存储重新计算的摘要一致。
