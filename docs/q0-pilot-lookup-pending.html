@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>构建任务核对</title>
+<style>
+body { margin: 0; padding: 40px 20px; background: #f3f5f8; color: #162138; font: 16px/1.65 system-ui, sans-serif; }
+main { max-width: 720px; margin: auto; padding: 36px; background: white; border: 1px solid #e0e6ef; border-radius: 18px; }
+h1 { font-size: 27px; margin: 0 0 14px; } .status { display: inline-block; background: #edf2ff; color: #203e77; padding: 4px 12px; border-radius: 8px; font-weight: 650; }
+p { color: #40516b; } dl { display: grid; grid-template-columns: minmax(88px, 116px) minmax(0, 1fr); gap: 10px 14px; padding: 18px 0; border-block: 1px solid #e0e6ef; }
+dt { color: #40516b; } dd { margin: 0; overflow-wrap: anywhere; } form { display: inline-block; margin-right: 16px; }
+button { font: inherit; color: white; background: #254a86; padding: 9px 17px; border: none; border-radius: 8px; cursor: pointer; } a { color: #254a86; }
+@media(max-width: 520px) { main { padding: 24px; } dl { grid-template-columns: 1fr; gap: 4px; } dd { margin-bottom: 8px; } }
+</style></head>
+<body><main>
+<h1>构建任务核对</h1>
+<div class="status" id="state" data-state="awaiting_review" role="status">待核对</div>
+<p>编译端暂时查不到任务。请在查询恢复后重新查询，平台会继续核对原请求。</p>
+<dl><dt>负责人</dt><dd id="owner">q0-pilot-e8aae15d</dd>
+<dt>任务</dt><dd><code>01a2073d-b28e-7d50-8881-516f96430276</code></dd>
+<dt>原请求</dt><dd><code>09d7afcc0bd504cd64c10a393f80ad9b</code></dd>
+<dt>原构建</dt><dd id="build">待确认</dd></dl>
+<form id="recheck" method="post" action="/reconciliation/recheck"><button type="submit">重新查询</button></form>
+
+</main></body></html>
