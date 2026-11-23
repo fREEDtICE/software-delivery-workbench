@@ -8,6 +8,8 @@ from pathlib import Path
 import shutil
 import socket
 import subprocess
+import sys
+from threading import Event
 import time
 from urllib.error import HTTPError
 from urllib.request import ProxyHandler, Request, build_opener
@@ -115,9 +117,43 @@ def assert_destination_denied(lease, source):
     print(json.dumps({"denied_model": {"http_status": 403, "source_version": hashlib.sha256(source).hexdigest()}}), flush=True)
 
 
+def probe_revoked(lease):
+    source = Path("/pilot/quote.py").read_bytes()
+    model_request = json.dumps({
+        "model": "pilot-approved",
+        "messages": [{"role": "user", "content": source.decode()}],
+    }).encode()
+    observations = {}
+    for role, path, body in (("workspace", "/save", source), ("gateway", "/v1/chat/completions", model_request)):
+        remaining_ms = int(os.environ["LEASE_EXPIRY"]) * 1000 - time.time_ns() // 1_000_000
+        require(remaining_ms > 0, "Lease expired before the revocation probe")
+        request = Request(f"http://{role}:8080{path}", headers={
+            "Authorization": "Bearer " + lease, "Content-Type": "application/json",
+        }, data=body)
+        sent_at = time.time_ns()
+        try:
+            with HTTP.open(request, timeout=10) as response:
+                observations[role] = {"status": response.status}
+        except HTTPError as error:
+            reason = json.load(error)["error"]
+            observations[role] = {"status": error.code, "reason": reason["code"] if isinstance(reason, dict) else reason}
+        observations[role].update(request_started_at_ns=sent_at, lease_remaining_ms=remaining_ms)
+    print(json.dumps({"requests": observations, "source_version": hashlib.sha256(source).hexdigest()}), flush=True)
+
+
 def main():
     lease = os.environ["WORK_LEASE"]
+    mode = sys.argv[1:]
+    if mode == ["--probe-revoked"]:
+        probe_revoked(lease)
+        return
     print(json.dumps({"boundary": boundary()}), flush=True)
+    if mode == ["--replacement"]:
+        require(not any(ROOT.iterdir()), "Replacement Runtime has prior scratch state")
+        print(json.dumps({"fresh_scratch": True}), flush=True)
+        Event().wait()
+        return
+    require(mode in ([], ["--hold-for-reclaim"]), "Unknown Runtime mode")
     prepare_profile()
     lease_file = ROOT / "lease"
     fd = os.open(lease_file, os.O_CREAT | os.O_WRONLY | os.O_EXCL, 0o600)
@@ -145,6 +181,9 @@ def main():
     print(json.dumps({"agent": result}), flush=True)
     require(run.returncode == 0 and result["result"]["Status"] == "completed", "Multica/DSH agent did not complete")
     assert_destination_denied(lease, (ROOT / "saved-source").read_bytes())
+    if mode == ["--hold-for-reclaim"]:
+        print(json.dumps({"ready_to_reclaim": True}), flush=True)
+        Event().wait()
 
 
 if __name__ == "__main__":

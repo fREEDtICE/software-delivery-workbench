@@ -1,5 +1,6 @@
 """Make a JSON request from the pilot operator network."""
 
+from http.client import RemoteDisconnected
 import json
 import sys
 from urllib.error import HTTPError, URLError
@@ -20,6 +21,8 @@ def main():
             print(json.dumps({"status": response.status, "body": json.load(response)}))
     except HTTPError as error:
         print(json.dumps({"status": error.code, "error": error.read(500).decode(errors="replace")}))
+    except RemoteDisconnected:
+        print(json.dumps({"status": 0, "error": "connection_closed_without_response"}))
     except URLError:
         print(json.dumps({"status": 0, "error": "service not reachable"}))
 

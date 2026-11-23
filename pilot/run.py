@@ -116,11 +116,13 @@ class Pilot:
     def inspect(self, role, form):
         return self.docker("inspect", "--format", form, self.containers[role]).stdout.strip()
 
-    def request(self, role, path, body=None, token=None, workspace=None, *, health=False):
-        require(role in {"backend", "compiler"}, "Unknown operator API")
+    def request(self, role, path, body=None, token=None, workspace=None, *, health=False, raw=False):
+        require(role in {"backend", "compiler", "policy"}, "Unknown operator API")
         parameters = {"url": f"http://{role}:8080{path}", "body": body, "token": token, "workspace": workspace}
         response = json.loads(self.docker("exec", "-i", self.containers["operator"], "python", "/app/operator_request.py",
                                           stdin=json.dumps(parameters)).stdout)
+        if raw:
+            return response
         status = response["status"]
         if health:
             return status if status == 200 else None
@@ -166,9 +168,141 @@ class Pilot:
         self.record["backend"].update(task=task, running=True)
         return api, route, task
 
+    def describe(self, role):
+        mounts = json.loads(self.inspect(role, "{{json .Mounts}}"))
+        return {
+            "container_id": self.inspect(role, "{{.Id}}"), "image": self.inspect(role, "{{.Image}}"),
+            "networks": sorted(json.loads(self.inspect(role, "{{json .NetworkSettings.Networks}}"))),
+            "mounts": [{"type": m["Type"], "destination": m["Destination"]} for m in mounts],
+            "published_ports": json.loads(self.inspect(role, "{{json .HostConfig.PortBindings}}")) or {},
+        }
+
+    def wait_runtime(self, role, ready_key, timeout):
+        def check():
+            output = self.docker("logs", self.containers[role])
+            messages = [json.loads(line) for line in self.redact(output.stdout).splitlines()]
+            result = {key: value for message in messages for key, value in message.items()}
+            if result.get(ready_key):
+                return result
+            if self.inspect(role, "{{.State.Status}}") != "running":
+                raise RuntimeError(f"{role} exited before {ready_key}: {self.redact(output.stderr[-1800:])}")
+            return None
+
+        return eventually(check, timeout, ready_key)
+
+    def checkpoint(self, intent=None):
+        path = "/state/build-request.json"
+        if intent is not None:
+            self.docker("exec", "-i", self.containers["operator"], "python", "-c", (
+                "import os,sys; f=open(sys.argv[1], 'x'); f.write(sys.stdin.read()); "
+                "f.flush(); os.fsync(f.fileno()); f.close(); "
+                "d=os.open('/state', os.O_RDONLY | os.O_DIRECTORY); os.fsync(d); os.close(d)"
+            ), path, stdin=json.dumps(intent))
+        return json.loads(self.io("operator", "cat", path))
+
+    def recover_build(self, work, version, build_key):
+        intent = self.checkpoint({"request_id": secrets.token_hex(16), "work": work, "source_version": version})
+        request_id = intent["request_id"]
+        recovery = self.record["recovery"] = {"durable_intent": intent}
+        self.mark("accept build and drop the HTTP receipt")
+        lost = self.request("compiler", "/builds", {**intent, "drop_receipt": True}, build_key, raw=True)
+        recovery["first_submit"] = lost
+        require(lost == {"status": 0, "error": "connection_closed_without_response"}, "Original submit received a response")
+
+        def build_waiting():
+            return next((e for e in self.events("compiler") if e["event"] == "build_waiting_for_release"
+                         and e["request_id"] == request_id), None)
+
+        waiting = eventually(build_waiting, 30, "accepted build preparing source")
+        recovery["build_running_before_reclaim"] = waiting
+        require(not any(e["event"] == "compile_and_direct_store" for e in self.events("compiler")),
+                "Build completed before Runtime reclamation")
+        runtime = self.containers["runtime"]
+        container_id = self.record["services"]["runtime"]["container_id"]
+        self.mark("reclaim the running Runtime and restart the operator")
+        require(self.inspect("runtime", "{{.State.Status}}") == "running", "Runtime exited before reclamation")
+        self.docker("kill", runtime)
+        exit_status = int(self.inspect("runtime", "{{.State.ExitCode}}"))
+        self.docker("rm", "-v", runtime)
+        require(self.docker("inspect", container_id, check=False).returncode != 0, "Original Runtime still exists")
+        require(exit_status == 137, f"Unexpected reclaimed Runtime exit status: {exit_status}")
+        self.record["runtime_exit_status"] = exit_status
+        recovery["runtime_reclaimed"] = {"container_id": container_id, "exit_status": exit_status, "removed": True}
+        operator_started = self.inspect("operator", "{{.State.StartedAt}}")
+        self.docker("restart", "--timeout", "0", self.containers["operator"])
+        operator_restarted = self.inspect("operator", "{{.State.StartedAt}}")
+        require(operator_restarted != operator_started, "Operator process was not restarted")
+        recovery["operator_restart"] = {"started_before": operator_started, "started_after": operator_restarted}
+
+        recovered = self.checkpoint()
+        require(recovered == intent and set(recovered) == {"request_id", "work", "source_version"},
+                "Operator did not recover the original intent without a build receipt")
+        recovery["intent_after_restart"] = recovered
+        path = f"/builds/{recovered['request_id']}"
+        original = self.request("compiler", path, token=build_key)
+        recovery["lookup_after_restart"] = original
+        require(original["build_id"] == waiting["build_id"] and original["work"] == work
+                and original["source_version"] == version and original["status"] == "running" and not original["released"],
+                "Lookup did not return the running original build")
+        replay = self.request("compiler", "/builds", recovered, build_key)
+        require(replay == original, "Replay while running changed the build")
+        recovery["duplicate_while_running"] = replay
+        return path
+
+    def verify_revocation(self, work, version, policy_admin):
+        self.mark("revoke the unexpired lease and test the first new requests")
+        approved_before = self.events("model-receiver")
+        objects_before = self.events("objects")
+        ack = self.request("policy", "/revoke", {}, policy_admin)
+        self.record["revocation"] = {"ack": ack}
+        probe = json.loads(self.io("replacement", "python3", "/pilot/runtime.py", "--probe-revoked"))
+        self.record["revocation"].update(probe)
+        approved_after, objects_after = self.events("model-receiver"), self.events("objects")
+        self.record["revocation"]["receiver_deltas"] = {
+            "approved_model": len(approved_after) - len(approved_before),
+            "objects": len(objects_after) - len(objects_before),
+        }
+        require(ack["work"] == work and probe["source_version"] == version, "Revocation tested a different work or source")
+        require(set(probe["requests"]) == {"gateway", "workspace"}, "A lease entry point was not tested")
+        for result in probe["requests"].values():
+            require(result["status"] == 403 and result["reason"] == "lease_revoked"
+                    and result["lease_remaining_ms"] > 0 and result["request_started_at_ns"] >= ack["revoked_at_ns"],
+                    "An unexpired lease was not rejected on its first request after revocation")
+            result["delay_since_revoke_ms"] = round((result["request_started_at_ns"] - ack["revoked_at_ns"]) / 1e6, 1)
+        require(approved_before == approved_after and objects_before == objects_after,
+                "A revoked request reached a downstream receiver")
+        policy = self.events("policy")
+        require(sum(e["event"] == "lease_revoked" for e in policy) == 1
+                and sum(e.get("decision") == "lease_revoked" for e in policy) == 2,
+                "Policy did not record both denied uses of the revoked lease")
+
+    def complete_recovered_build(self, path, build_key):
+        self.mark("finish the original build and verify duplicate requests return the same result")
+        self.request("compiler", path + "/release", {}, build_key)
+
+        def finished_build():
+            state = self.request("compiler", path, token=build_key)
+            require(state["status"] != "failed", "Original build failed")
+            return state if state["status"] == "completed" else None
+
+        job = eventually(finished_build, 35, "recovered build completion")
+        recovery = self.record["recovery"]
+        replay = self.request("compiler", "/builds", self.checkpoint(), build_key)
+        require(replay == job and job["build_id"] == recovery["lookup_after_restart"]["build_id"],
+                "Completed build differs from the recovered original")
+        recovery["duplicate_after_completion"] = replay
+        events = self.events("compiler")
+        expected = {"build_accepted": 1, "acceptance_response_dropped": 1, "source_received": 1,
+                    "compile_started": 1, "compile_and_direct_store": 1, "duplicate_submission": 2}
+        counts = {event: sum(e["event"] == event for e in events) for event in expected}
+        recovery["compiler_event_counts"] = counts
+        require(counts == expected and all(e["build_id"] == job["build_id"] for e in events),
+                "Receipts or actual compiler executions were duplicated")
+        return job["receipt"]
+
     def run(self):
         self.mark("start private pilot services")
-        edge, storage, model, control = (self.network(role) for role in ("edge", "storage", "model", "control"))
+        edge, storage, model, control, policy_net = (self.network(role) for role in ("edge", "storage", "model", "control", "policy"))
         prep = self.network("model-prep", internal=False)
         for image in IMAGES.values():
             self.record.setdefault("images", {})[image] = json.loads(
@@ -194,9 +328,10 @@ class Pilot:
         }, options=["--mount", f"type=volume,src={self.volume('objects')},dst=/data"], command=["objects"])
         self.container("compiler", IMAGES["service"], [storage], env={
             "OBJECT_KEY": compiler_key, "BUILD_KEY": build_key,
-        }, command=["compiler"])
-        self.container("operator", IMAGES["service"], [control, storage],
-                       options=["--entrypoint", "python"], command=["-c", "import time; time.sleep(3600)"])
+        }, options=["--mount", f"type=volume,src={self.volume('build-state')},dst=/build-state"], command=["compiler"])
+        self.container("operator", IMAGES["service"], [control, storage, policy_net],
+                       options=["--entrypoint", "python", "--mount", f"type=volume,src={self.volume('operator')},dst=/state"],
+                       command=["-c", "import time; time.sleep(3600)"])
         self.mark("prepare and isolate real model")
         eventually(lambda: self.io("ollama", "ollama", "list", check=False) or None, 45, "Ollama")
         self.io("ollama", "ollama", "pull", MODEL, timeout=540)
@@ -210,9 +345,14 @@ class Pilot:
 
         lease = self.secret()
         expires = str(int(time.time()) + 600)
-        env = {"WORK_LEASE": lease, "LEASE_EXPIRY": expires, "WORK_ID": work}
-        self.container("workspace", IMAGES["service"], [edge, storage], env={**env, "OBJECT_KEY": workspace_key}, command=["workspace"])
-        self.container("gateway", IMAGES["service"], [edge, model], env=env, command=["gateway"])
+        policy_admin, policy_check = self.secret(), self.secret()
+        env = {"WORK_ID": work, "POLICY_CHECK_KEY": policy_check}
+        self.container("policy", IMAGES["service"], [policy_net], env={
+            **env, "POLICY_ADMIN_KEY": policy_admin, "WORK_LEASE_SHA256": hashlib.sha256(lease.encode()).hexdigest(),
+            "LEASE_EXPIRY": expires,
+        }, options=["--mount", f"type=volume,src={self.volume('policy')},dst=/policy-state"], command=["policy"])
+        self.container("workspace", IMAGES["service"], [edge, storage, policy_net], env={**env, "OBJECT_KEY": workspace_key}, command=["workspace"])
+        self.container("gateway", IMAGES["service"], [edge, model, policy_net], env=env, command=["gateway"])
         def address(role, network, port):
             networks = json.loads(self.inspect(role, "{{json .NetworkSettings.Networks}}"))
             return [networks[network]["IPAddress"], port]
@@ -220,42 +360,31 @@ class Pilot:
         probes = {role: address(role, network, port) for role, network, port in (
             ("objects", storage, 8080), ("compiler", storage, 8080),
             ("model-receiver", model, 8080), ("denied-receiver", model, 8080), ("ollama", model, 11434),
+            ("policy", policy_net, 8080),
         )}
         self.record["receiver_health"] = {}
-        for role in ("objects", "compiler", "workspace", "gateway", "model-receiver", "denied-receiver"):
+        for role in ("objects", "compiler", "workspace", "gateway", "model-receiver", "denied-receiver", "policy"):
             self.record["receiver_health"][role] = int(eventually(
                 lambda: self.io(role, "python", "-c",
                                 "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=2).status)",
                                 check=False) or None, 20, role + " health",
             ))
         self.mark("execute DSH in an ephemeral Runtime")
-        runtime = self.container("runtime", IMAGES["runtime"], [edge], env={
-            "WORK_LEASE": lease, "LEASE_EXPIRY": expires, "PROBE_ADDRESSES": json.dumps(probes),
-        }, options=["--user", "1000:1000", "--read-only", "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
-                    "--tmpfs", "/run/q0:rw,nosuid,nodev,noexec,uid=1000,gid=1000,mode=0700",
-                    "--tmpfs", "/tmp:rw,nosuid,nodev,noexec,mode=1777"])
-        exit_code = int(self.docker("wait", runtime, timeout=440).stdout.strip())
-        output = self.docker("logs", runtime)
+        runtime_env = {"WORK_LEASE": lease, "LEASE_EXPIRY": expires, "PROBE_ADDRESSES": json.dumps(probes)}
+        runtime_options = [
+            "--user", "1000:1000", "--read-only", "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
+            "--tmpfs", "/run/q0:rw,nosuid,nodev,noexec,uid=1000,gid=1000,mode=0700",
+            "--tmpfs", "/tmp:rw,nosuid,nodev,noexec,mode=1777",
+        ]
+        self.container("runtime", IMAGES["runtime"], [edge], env=runtime_env, options=runtime_options, command=["--hold-for-reclaim"])
+        self.record.update(self.wait_runtime("runtime", "ready_to_reclaim", 440))
         deploy = self.record["services"]
-        for role in self.containers:
-            mounts = json.loads(self.inspect(role, "{{json .Mounts}}"))
-            deploy[role] = {
-                "container_id": self.inspect(role, "{{.Id}}"), "image": self.inspect(role, "{{.Image}}"),
-                "networks": sorted(json.loads(self.inspect(role, "{{json .NetworkSettings.Networks}}"))),
-                "mounts": [{"type": m["Type"], "destination": m["Destination"]} for m in mounts],
-                "published_ports": json.loads(self.inspect(role, "{{json .HostConfig.PortBindings}}")) or {},
-            }
+        deploy.update({role: self.describe(role) for role in self.containers})
         self.record["network_internal"] = {
             n: self.docker("network", "inspect", "--format", "{{.Internal}}", n).stdout.strip() == "true"
             for n in self.networks
         }
-        self.record["runtime_exit_status"] = exit_code
-        for line in output.stdout.splitlines():
-            self.record.update(json.loads(self.redact(line)))
-        if exit_code:
-            self.record["runtime_error"] = self.redact(output.stderr[-1800:])
-        require(exit_code == 0, f"Runtime exited with status {exit_code}")
-        require(deploy["runtime"]["networks"] == [edge] and all(m["type"] == "tmpfs" for m in deploy["runtime"]["mounts"]),
+        require(deploy["runtime"]["networks"] == [edge] and not deploy["runtime"]["mounts"],
                 "Runtime network or mount boundary failed")
         require(not any(service["published_ports"] for service in deploy.values()), "A private service published ports")
 
@@ -269,8 +398,15 @@ class Pilot:
             e["type"] == "tool-result" and version in e.get("output", "") for e in agent_run["events"]
         ), "Agent did not observe the saved source version")
 
-        self.mark("compile the exact saved version and persist the artifact directly")
-        receipt = self.request("compiler", "/build", {"source_version": version, "work": work}, build_key)
+        build_path = self.recover_build(work, version, build_key)
+        self.container("replacement", IMAGES["runtime"], [edge], env=runtime_env, options=runtime_options, command=["--replacement"])
+        replacement = self.wait_runtime("replacement", "fresh_scratch", 30)
+        self.record["recovery"]["replacement"] = replacement
+        deploy["replacement"] = self.describe("replacement")
+        require(deploy["replacement"]["networks"] == [edge] and not deploy["replacement"]["mounts"],
+                "Replacement Runtime network or mount boundary failed")
+        self.verify_revocation(work, version, policy_admin)
+        receipt = self.complete_recovered_build(build_path, build_key)
         artifact = receipt["artifact_sha256"]
         self.record["build_receipt"] = receipt
         require(receipt["source_version"] == version and receipt["case_results"] == [21, 0, 200],
@@ -303,14 +439,16 @@ class Pilot:
                 "Approved model requests did not finish")
         require(not denied, "Unapproved model receiver observed a request")
         self.record["checks"] = {"source_saved": True, "exact_source_compiled": True, "compiler_direct_store": True,
-                                 "runtime_boundary": True, "denial_before_send": True}
+                                 "runtime_boundary": True, "denial_before_send": True,
+                                 "runtime_reclaimed_during_build": True, "lost_receipt_recovered": True,
+                                 "exactly_one_pilot_compile": True, "revoked_lease_denied_at_both_edges": True}
         self.record["approved_model_completed"] = len(allowed)
         self.record["unapproved_model_received"] = len(denied)
         self.record["status"] = "passed"
         self.mark("pilot verification passed")
 
     def finish(self):
-        for role in ("objects", "workspace", "gateway", "compiler", "model-receiver", "denied-receiver"):
+        for role in ("objects", "workspace", "gateway", "compiler", "model-receiver", "denied-receiver", "policy"):
             if role in self.containers:
                 self.record.setdefault("receiver_events", {})[role] = self.events(role)
         if self.record.get("status") == "failed" and "backend" in self.containers:
