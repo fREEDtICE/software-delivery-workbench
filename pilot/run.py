@@ -3,6 +3,7 @@
 import argparse
 from datetime import datetime, timezone
 import hashlib
+from html.parser import HTMLParser
 import json
 import os
 from pathlib import Path
@@ -42,8 +43,36 @@ def eventually(check, timeout, label):
     raise RuntimeError(f"{label} took more than {timeout}s" + (f": {last}" if last else ""))
 
 
+class CasePage(HTMLParser):
+    """Read the rendered status, owner and operator controls."""
+
+    def __init__(self, html):
+        super().__init__()
+        self.elements = {}
+        self.labels = {}
+        self.field = None
+        self.feed(html)
+
+    def handle_starttag(self, tag, attrs):
+        values = dict(attrs)
+        element = values.get("id")
+        if element in {"state", "owner", "build", "recheck", "original-build"}:
+            self.elements[element] = values
+            self.labels[element] = ""
+            self.field = element
+
+    def handle_data(self, data):
+        if self.field:
+            self.labels[self.field] += data.strip()
+
+    def handle_endtag(self, tag):
+        if tag in {"div", "dd", "form", "a"}:
+            self.field = None
+
+
 class Pilot:
-    def __init__(self, context, evidence):
+    def __init__(self, context, evidence, *, lookup_outage=False):
+        self.lookup_outage = lookup_outage
         self.cli = ["docker"] + (["--context", context] if context else [])
         self.evidence = evidence
         self.prefix = "q0-pilot-" + secrets.token_hex(4)
@@ -116,9 +145,10 @@ class Pilot:
     def inspect(self, role, form):
         return self.docker("inspect", "--format", form, self.containers[role]).stdout.strip()
 
-    def request(self, role, path, body=None, token=None, workspace=None, *, health=False, raw=False):
-        require(role in {"backend", "compiler", "policy"}, "Unknown operator API")
-        parameters = {"url": f"http://{role}:8080{path}", "body": body, "token": token, "workspace": workspace}
+    def request(self, role, path, body=None, token=None, workspace=None, *, health=False, raw=False, form=False):
+        require(role in {"backend", "compiler", "policy", "operator"}, "Unknown operator API")
+        host = "127.0.0.1" if role == "operator" else role
+        parameters = {"url": f"http://{host}:8080{path}", "body": body, "token": token, "workspace": workspace, "form": form}
         response = json.loads(self.docker("exec", "-i", self.containers["operator"], "python", "/app/operator_request.py",
                                           stdin=json.dumps(parameters)).stdout)
         if raw:
@@ -139,7 +169,10 @@ class Pilot:
     def api_setup(self, code):
         email = self.prefix + "@example.invalid"
         self.request("backend", "/auth/send-code", {"email": email})
-        token = self.secret(self.request("backend", "/auth/verify-code", {"email": email, "code": code})["token"])
+        identity = self.request("backend", "/auth/verify-code", {"email": email, "code": code})
+        token = self.secret(identity["token"])
+        user = identity["user"]
+        owner = {"id": user["id"], "label": user.get("name") or email}
         workspace = self.request("backend", "/api/workspaces/", {"name": "Q0 Pilot", "slug": self.prefix}, token)["id"]
 
         def api(path, body=None):
@@ -157,7 +190,7 @@ class Pilot:
             "title": "Fix the synthetic line subtotal", "description": "Save and build quote.py.",
             "assignee_type": "agent", "assignee_id": agent,
         })["id"]
-        self.record["backend"] = {"ready": True, "workspace": workspace, "runtime": runtime_id, "issue": issue}
+        self.record["backend"] = {"ready": True, "workspace": workspace, "runtime": runtime_id, "issue": issue, "operator": owner}
         claim = eventually(lambda: api(f"/api/daemon/runtimes/{runtime_id}/tasks/claim", {}).get("task"),
                            35, "Multica issue task claim")
         task = claim["id"]
@@ -200,12 +233,77 @@ class Pilot:
             ), path, stdin=json.dumps(intent))
         return json.loads(self.io("operator", "cat", path))
 
+    def review_page(self, snapshot, state, build_id=None, *, html=None):
+        if html is None:
+            html = self.request("operator", "/reconciliation")
+        page = CasePage(html)
+        labels = {"awaiting_review": "待核对", "linked": "已关联原任务", "completed": "已完成"}
+        require(page.elements["state"]["data-state"] == state and page.labels["state"] == labels[state],
+                "Operator page shows the wrong state")
+        require(page.labels["owner"] == self.record["backend"]["operator"]["label"], "Page does not show the responsible operator")
+        action = page.elements["recheck"]
+        require(action["method"] == "post" and action["action"] == "/reconciliation/recheck"
+                and page.labels["recheck"] == "重新查询", "Page does not offer the original lookup action")
+        require(page.labels["build"] == (build_id or "待确认"), "Page shows the wrong build identity")
+        if build_id:
+            link = page.elements["original-build"]["href"]
+            require(link == "/reconciliation/build", "Expected a link to the original build details")
+            detail = CasePage(self.request("operator", link))
+            require(detail.labels["build"] == build_id, "Build details do not match the original")
+        else:
+            require("original-build" not in page.elements, "Page links a build before the lookup is verified")
+        (self.evidence / (snapshot + ".html")).write_text(html, encoding="utf-8")
+        self.record["lookup_outage"].setdefault("views", {})[snapshot] = {
+            "state": state, "label": page.labels["state"], "owner": page.labels["owner"],
+            "action": action["action"], "action_label": page.labels["recheck"],
+            "build_id": build_id, "original_build_link": page.elements.get("original-build", {}).get("href"),
+        }
+        return action["action"]
+
+    def observe_lookup_outage(self, path, original_id, request_id, build_key):
+        self.mark("verify pending review through the operator page while compiler lookup returns HTTP 503")
+        evidence = self.record["lookup_outage"] = {}
+        eventually(lambda: self.request("operator", "/health", health=True), 20, "reconciliation console restart")
+        start = self.request("operator", "/reconciliation/start", {"owner": self.record["backend"]["operator"]})
+        evidence["initial"] = start
+        require(start["state"] == "awaiting_review" and start["build"] is None
+                and start["history"][0]["compiler_http"] == 503, "Unavailable lookup did not enter pending review")
+        action = self.review_page("pending-review", "awaiting_review")
+        for _ in range(2):
+            time.sleep(1)
+            self.request("operator", action, {}, form=True)
+        pending = self.request("operator", "/reconciliation/state")
+        evidence["pending"] = pending
+        require(pending["state"] == "awaiting_review" and pending["build"] is None
+                and len(pending["history"]) == 3
+                and all(event["compiler_http"] == 503 and event["build_id"] is None for event in pending["history"]),
+                "Recheck left pending review or linked an unverified build")
+        self.review_page("pending-after-rechecks", "awaiting_review")
+        events = self.events("compiler")
+        evidence["compiler_during_outage"] = events
+        require(sum(e["event"] == "build_accepted" for e in events) == 1
+                and not any(e["event"] == "duplicate_submission" for e in events)
+                and sum(e["event"] == "lookup_unavailable" for e in events) == 3
+                and all(e.get("request_id") == request_id and e.get("build_id") == original_id for e in events),
+                "Compiler did not confirm one submission and three failed lookups during the outage")
+
+        self.mark("restore compiler lookup and link the original build through the same operator action")
+        self.request("compiler", path + "/restore-lookup", {}, build_key)
+        html = self.request("operator", action, {}, form=True)
+        linked = self.request("operator", "/reconciliation/state")
+        evidence["linked"] = linked
+        require(linked["state"] == "linked" and linked["build"]["build_id"] == original_id
+                and linked["history"][-1]["compiler_http"] == 200,
+                "Operator recheck did not link the original build")
+        self.review_page("linked-original-build", "linked", original_id, html=html)
+        return linked["build"]
+
     def recover_build(self, work, version, build_key):
         intent = self.checkpoint({"request_id": secrets.token_hex(16), "work": work, "source_version": version})
         request_id = intent["request_id"]
         recovery = self.record["recovery"] = {"durable_intent": intent}
         self.mark("accept build and drop the HTTP receipt")
-        lost = self.request("compiler", "/builds", {**intent, "drop_receipt": True}, build_key, raw=True)
+        lost = self.request("compiler", "/builds", {**intent, "drop_receipt": True, "pause_lookup": self.lookup_outage}, build_key, raw=True)
         recovery["first_submit"] = lost
         require(lost == {"status": 0, "error": "connection_closed_without_response"}, "Original submit received a response")
 
@@ -239,14 +337,18 @@ class Pilot:
                 "Operator did not recover the original intent without a build receipt")
         recovery["intent_after_restart"] = recovered
         path = f"/builds/{recovered['request_id']}"
-        original = self.request("compiler", path, token=build_key)
+        if self.lookup_outage:
+            original = self.observe_lookup_outage(path, waiting["build_id"], request_id, build_key)
+        else:
+            original = self.request("compiler", path, token=build_key)
         recovery["lookup_after_restart"] = original
         require(original["build_id"] == waiting["build_id"] and original["work"] == work
                 and original["source_version"] == version and original["status"] == "running" and not original["released"],
                 "Lookup did not return the running original build")
-        replay = self.request("compiler", "/builds", recovered, build_key)
-        require(replay == original, "Replay while running changed the build")
-        recovery["duplicate_while_running"] = replay
+        if not self.lookup_outage:
+            replay = self.request("compiler", "/builds", recovered, build_key)
+            require(replay == original, "Replay while running changed the build")
+            recovery["duplicate_while_running"] = replay
         return path
 
     def verify_revocation(self, work, version, policy_admin):
@@ -285,7 +387,7 @@ class Pilot:
         return json.loads(response.stdout)
 
     def complete_recovered_build(self, path, build_key):
-        self.mark("finish the original build and verify duplicate requests return the same result")
+        self.mark("finish the original build and verify its receipt and compiler counters")
         self.request("compiler", path + "/release", {}, build_key)
 
         def finished_build():
@@ -295,13 +397,25 @@ class Pilot:
 
         job = eventually(finished_build, 35, "recovered build completion")
         recovery = self.record["recovery"]
-        replay = self.request("compiler", "/builds", self.checkpoint(), build_key)
-        require(replay == job and job["build_id"] == recovery["lookup_after_restart"]["build_id"],
+        require(job["build_id"] == recovery["lookup_after_restart"]["build_id"],
                 "Completed build differs from the recovered original")
-        recovery["duplicate_after_completion"] = replay
+        recovery["completed_build"] = job
+        if self.lookup_outage:
+            action = self.record["lookup_outage"]["views"]["linked-original-build"]["action"]
+            html = self.request("operator", action, {}, form=True)
+            final = self.request("operator", "/reconciliation/state")
+            self.record["lookup_outage"]["completed"] = final
+            require(final["state"] == "completed" and final["build"] == job, "Operator did not link the completed receipt")
+            self.review_page("completed-original-build", "completed", job["build_id"], html=html)
+        else:
+            replay = self.request("compiler", "/builds", self.checkpoint(), build_key)
+            require(replay == job, "Replay after completion changed the build")
+            recovery["duplicate_after_completion"] = replay
         events = self.events("compiler")
         expected = {"build_accepted": 1, "acceptance_response_dropped": 1, "source_received": 1,
-                    "compile_started": 1, "compile_and_direct_store": 1, "duplicate_submission": 2}
+                    "compile_started": 1, "compile_and_direct_store": 1, "duplicate_submission": 0 if self.lookup_outage else 2}
+        if self.lookup_outage:
+            expected.update(lookup_unavailable=3, lookup_restored=1)
         counts = {event: sum(e["event"] == event for e in events) for event in expected}
         recovery["compiler_event_counts"] = counts
         require(counts == expected and all(e["build_id"] == job["build_id"] for e in events),
@@ -338,8 +452,9 @@ class Pilot:
             "OBJECT_KEY": compiler_key, "BUILD_KEY": build_key, "BUILD_READ_KEY": build_read_key,
         }, options=["--mount", f"type=volume,src={self.volume('build-state')},dst=/build-state"], command=["compiler"])
         self.container("operator", IMAGES["service"], [control, storage, policy_net],
+                       env={"BUILD_READ_KEY": build_read_key} if self.lookup_outage else None,
                        options=["--entrypoint", "python", "--mount", f"type=volume,src={self.volume('operator')},dst=/state"],
-                       command=["-c", "import time; time.sleep(3600)"])
+                       command=["/app/reconciliation.py"] if self.lookup_outage else ["-c", "import time; time.sleep(3600)"])
         self.mark("prepare and isolate real model")
         eventually(lambda: self.io("ollama", "ollama", "list", check=False) or None, 45, "Ollama")
         self.io("ollama", "ollama", "pull", MODEL, timeout=540)
@@ -427,7 +542,7 @@ class Pilot:
         receipt = self.complete_recovered_build(build_path, build_key)
         observed = self.lookup_from_replacement(fresh_lease)
         recovery["replacement_lookup_completed"] = observed
-        require(observed == recovery["duplicate_after_completion"] and observed["receipt"] == receipt,
+        require(observed == recovery["completed_build"] and observed["receipt"] == receipt,
                 "Replacement Runtime did not retrieve the original completed receipt")
         artifact = receipt["artifact_sha256"]
         self.record["build_receipt"] = receipt
@@ -465,6 +580,9 @@ class Pilot:
                                  "runtime_reclaimed_during_build": True, "lost_receipt_recovered": True,
                                  "exactly_one_pilot_compile": True, "revoked_lease_denied_at_both_edges": True,
                                  "replacement_lease_recovered_original_receipt": True}
+        if self.lookup_outage:
+            self.record["checks"].update(lookup_outage_requires_review=True, operator_entry_verified=True,
+                                         no_build_resubmission=True, original_build_linked=True)
         self.record["approved_model_completed"] = len(allowed)
         self.record["unapproved_model_received"] = len(denied)
         self.record["status"] = "passed"
@@ -494,11 +612,12 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--context")
     parser.add_argument("--build", action="store_true")
+    parser.add_argument("--lookup-outage", action="store_true", help="exercise temporary compiler lookup failure")
     parser.add_argument("--evidence", default="evidence/q0-pilot")
     args = parser.parse_args()
     evidence = Path(args.evidence).absolute()
     evidence.mkdir(parents=True, exist_ok=True)
-    pilot = Pilot(args.context, evidence)
+    pilot = Pilot(args.context, evidence, lookup_outage=args.lookup_outage)
     try:
         if args.build:
             pilot.build()

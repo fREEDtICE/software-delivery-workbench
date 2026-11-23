@@ -4,6 +4,7 @@ from http.client import RemoteDisconnected
 import json
 import sys
 from urllib.error import HTTPError, URLError
+from urllib.parse import urlencode
 from urllib.request import ProxyHandler, Request, build_opener
 
 
@@ -15,10 +16,19 @@ def main():
     if parameters["workspace"]:
         headers["X-Workspace-ID"] = parameters["workspace"]
     data = parameters["body"]
-    request = Request(parameters["url"], data=json.dumps(data).encode() if data is not None else None, headers=headers)
+    if parameters.get("form"):
+        headers["Content-Type"] = "application/x-www-form-urlencoded"
+        payload = urlencode(data).encode()
+    else:
+        payload = json.dumps(data).encode() if data is not None else None
+    request = Request(parameters["url"], data=payload, headers=headers)
     try:
         with build_opener(ProxyHandler({})).open(request, timeout=30) as response:
-            print(json.dumps({"status": response.status, "body": json.load(response)}))
+            if response.headers.get_content_type() == "text/html":
+                body = response.read().decode("utf-8")
+            else:
+                body = json.load(response)
+            print(json.dumps({"status": response.status, "body": body}))
     except HTTPError as error:
         print(json.dumps({"status": error.code, "error": error.read(500).decode(errors="replace")}))
     except RemoteDisconnected:

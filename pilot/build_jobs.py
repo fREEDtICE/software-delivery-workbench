@@ -35,6 +35,7 @@ def init():
                 receipt TEXT
             )
         """)
+        db.execute("CREATE TABLE IF NOT EXISTS paused_lookups (request_id TEXT PRIMARY KEY)")
 
 
 def read(db, request_id):
@@ -52,12 +53,26 @@ def lookup(request_id):
         return read(db, request_id)
 
 
-def submit(request_id, work, version):
+def client_lookup(request_id):
+    with database() as db:
+        paused = db.execute("SELECT 1 FROM paused_lookups WHERE request_id = ?", (request_id,)).fetchone()
+        return read(db, request_id), paused is not None
+
+
+def restore_lookup(request_id):
+    with database() as db:
+        restored = db.execute("DELETE FROM paused_lookups WHERE request_id = ?", (request_id,)).rowcount == 1
+        return read(db, request_id) if restored else None
+
+
+def submit(request_id, work, version, *, pause_lookup=False):
     with database() as db:
         created = db.execute("""
             INSERT INTO jobs (request_id, build_id, work, source_version, status, accepted_at_ns)
             VALUES (?, ?, ?, ?, 'accepted', ?) ON CONFLICT (request_id) DO NOTHING
         """, (request_id, str(uuid.uuid4()), work, version, time.time_ns())).rowcount == 1
+        if created and pause_lookup:
+            db.execute("INSERT INTO paused_lookups (request_id) VALUES (?)", (request_id,))
         job = read(db, request_id)
     return job, created
 

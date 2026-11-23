@@ -28,7 +28,7 @@ jobs:
           sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
           df -h /
       - name: Deploy and verify the isolated pilot
-        run: python3 pilot/run.py --build
+        run: python3 pilot/run.py --build --lookup-outage
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         if: ${{ always() }}
         with:

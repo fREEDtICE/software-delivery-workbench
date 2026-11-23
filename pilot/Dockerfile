@@ -55,5 +55,5 @@ ENTRYPOINT ["python3", "/pilot/runtime.py"]
 FROM ${SERVICES_IMAGE} AS services
 WORKDIR /app
 COPY tools/q0_destination.py tools/q0_remote_compile.py tools/compile_fixture.py tools/verify_q0.py /app/
-COPY pilot/services.py pilot/operator_request.py pilot/build_jobs.py pilot/lease_policy.py /app/
+COPY pilot/services.py pilot/operator_request.py pilot/build_jobs.py pilot/lease_policy.py pilot/reconciliation.py /app/
 ENTRYPOINT ["python", "/app/services.py"]

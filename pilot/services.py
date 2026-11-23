@@ -27,7 +27,7 @@ from verify_q0 import EXECUTE_ARTIFACT
 ROLE = sys.argv[1]
 PORT = 8080
 DIGEST = re.compile(r"[0-9a-f]{64}\Z")
-BUILD_ROUTE = re.compile(r"/builds/([0-9a-f]{32})(/release)?\Z")
+BUILD_ROUTE = re.compile(r"/builds/([0-9a-f]{32})(/release|/restore-lookup)?\Z")
 CHATS = "/v1/chat/completions"
 ALLOWED_MODEL = "pilot-approved"
 DENIED_MODEL = "pilot-unapproved"
@@ -156,7 +156,10 @@ class Handler(BaseHTTPRequestHandler):
         if ROLE == "compiler" and (route := BUILD_ROUTE.fullmatch(self.path)) and not route[2]:
             if not (self.authenticated(os.environ["BUILD_KEY"]) or self.authenticated(os.environ["BUILD_READ_KEY"])):
                 return self.reply(401, {"error": "build_credential_required"})
-            job = build_jobs.lookup(route[1])
+            job, paused = build_jobs.client_lookup(route[1])
+            if paused:
+                log("lookup_unavailable", work=job["work"], request_id=route[1], build_id=job["build_id"])
+                return self.reply(503, {"error": "build_lookup_unavailable"})
             return self.reply(200 if job else 404, job or {"error": "unknown_build"})
         if ROLE == "workspace" and (route := BUILD_ROUTE.fullmatch(self.path)) and not route[2]:
             try:
@@ -217,6 +220,12 @@ class Handler(BaseHTTPRequestHandler):
             if ROLE == "compiler" and (route := BUILD_ROUTE.fullmatch(self.path)) and route[2]:
                 if not self.authenticated(os.environ["BUILD_KEY"]):
                     return self.reply(401, {"error": "build_credential_required"})
+                if route[2] == "/restore-lookup":
+                    job = build_jobs.restore_lookup(route[1])
+                    if job is None:
+                        return self.reply(409, {"error": "build_lookup_not_paused"})
+                    log("lookup_restored", work=job["work"], request_id=route[1], build_id=job["build_id"])
+                    return self.reply(200, {"lookup_restored": True})
                 if not build_jobs.release(route[1]):
                     return self.reply(409, {"error": "build_is_not_waiting"})
                 return self.reply(200, {"released": True})
@@ -250,7 +259,7 @@ class Handler(BaseHTTPRequestHandler):
         version, work, request_id = body["source_version"], body["work"], body["request_id"]
         if not DIGEST.fullmatch(version) or not re.fullmatch(r"[0-9a-f]{32}", request_id):
             raise ValueError("invalid build identity")
-        job, created = build_jobs.submit(request_id, work, version)
+        job, created = build_jobs.submit(request_id, work, version, pause_lookup=body.get("pause_lookup") is True)
         if job["work"] != work or job["source_version"] != version:
             return self.reply(409, {"error": "request_identity_conflict"})
         identity = {"work": work, "request_id": request_id, "build_id": job["build_id"]}
