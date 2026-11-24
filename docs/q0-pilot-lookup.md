@@ -15,7 +15,7 @@
 
 ## 验收证据
 
-本机 Linux 和 GitHub Linux CI 都对提交 `ea7973b` 跑通。CI 的试点负责人是 `q0-pilot-e8aae15d`，原请求标识为 `09d7afcc0bd504cd64c10a393f80ad9b`，查回的构建号为 `461df5b8-b5a9-4d15-b7da-4b695749bd58`。三个产物用例得到 `21、0、200`，产物摘要 `1e363bdd…` 与本机和实际落盘文件一致。
+本机 Linux 和 GitHub Linux CI 都对提交 `010d2c2` 跑通。CI 的试点负责人是 `q0-pilot-e8aae15d`，原请求标识为 `09d7afcc0bd504cd64c10a393f80ad9b`，查回的构建号为 `461df5b8-b5a9-4d15-b7da-4b695749bd58`。三个产物用例得到 `21、0、200`，产物摘要 `1e363bdd…` 与本机和实际落盘文件一致。
 
 [待核对页面快照](q0-pilot-lookup-pending.html) · [关联原构建页面快照](q0-pilot-lookup-linked.html) · [状态与编译端原始记录](q0-pilot-lookup-ci-evidence.json) · [通过的 CI](https://github.com/fREEDtICE/software-delivery-workbench/actions/runs/45127946521) · [完整证据包](https://github.com/fREEDtICE/software-delivery-workbench/actions/runs/45127946521/artifacts/14796807625)
 
@@ -25,6 +25,6 @@
 
 - **选定真实团队与验收对象。** 确定团队、已有仓库、指定编译环境、测试工单、初版 Contract、独立验收人和比较基线。
 - **在目标部署补齐运行时硬规则。** 用真实身份验证各入口授权与跨团队隔离，在同一部署验证原 DSH 会话接续。Runner 失联、取消竞态和版本兼容继续按既有验收表取证。
-- **合并门禁已生效，独立审批待补。** main 由 ruleset `main-merge-gate` 强制：必须走 PR、必需三项 CI、禁止直推与强推、要求线性历史，且无 bypass 例外。仓库已转为公开，规则因此可在 Free 套餐上强制执行。当前审批数为 0（单人维护），进入 Q1 前需指定独立审批人并改为 1。
+- **落实受保护的合并门禁。** 当前私有仓库的 CI 可运行并留证，分支规则查询仍返回 HTTP 403，需落实约定的合并门禁。
 
 内部参考文档（未随仓库公开）：Q0 取证要求、运行时硬规则、Q1 真实团队验收。
