@@ -29,3 +29,5 @@ python3 tools/verify_q0.py --scenario wrong-source --report evidence/q0-wrong-so
 [真实模型网关复验与 Q1 准入](docs/q0-model-gateway.md)记录了 DSH 实际推理请求的授权、独立接收端证据，以及尚待关闭的 Q0 门禁。
 
 [隔离试点部署与验收](docs/q0-pilot.md)提供了 Linux 试点的复跑入口和部署、接收端证据。
+
+[历史重写与合并门禁](docs/history-rewrite.md)记录了仓库转为公开时对内网链接的处理、提交 SHA 对照，以及 main 上 `main-merge-gate` ruleset 的强制项。
