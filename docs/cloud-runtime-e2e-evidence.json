@@ -1,0 +1,899 @@
+{
+  "scenario": "cloud-runtime-e2e",
+  "status": "PASS",
+  "python": "3.14.0",
+  "mode": "fake-cloud",
+  "commit": null,
+  "run_id": null,
+  "providers": [
+    "aws",
+    "aliyun"
+  ],
+  "checks": [
+    {
+      "name": "aws-sigv4-official-vector",
+      "passed": true,
+      "expected": null,
+      "observed": "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20150830/us-east-1/service/aws4_request, SignedHeaders=host;x-amz-date, Signature=5fa00fa31553b73ebf1942676e86291e8372ff2a2260956d9b8aae1d763fbf31"
+    },
+    {
+      "name": "aws-sigv4-session-token-vector",
+      "passed": true,
+      "expected": null,
+      "observed": "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20150830/us-east-1/service/aws4_request, SignedHeaders=host;x-amz-date;x-amz-security-token, Signature=07ec1639c89043aa0e3e2de82b96708f198cceab042d4a97044c66dd9f74e7f8"
+    },
+    {
+      "name": "unknown-lease-denied",
+      "passed": true,
+      "expected": [
+        403,
+        "lease_required"
+      ],
+      "observed": [
+        403,
+        {
+          "code": "lease_required"
+        }
+      ]
+    },
+    {
+      "name": "expired-lease-denied",
+      "passed": true,
+      "expected": [
+        403,
+        "lease_expired"
+      ],
+      "observed": [
+        403,
+        {
+          "code": "lease_expired"
+        }
+      ]
+    },
+    {
+      "name": "aws-tampered-signature",
+      "passed": true,
+      "expected": "authorization_failed",
+      "observed": "authorization_failed"
+    },
+    {
+      "name": "aws-client-token-single-instance",
+      "passed": true,
+      "expected": null,
+      "observed": {
+        "first": "i-00000000000000001",
+        "second": "i-00000000000000001",
+        "launches": 1
+      }
+    },
+    {
+      "name": "aws-phase-ready",
+      "passed": true,
+      "expected": "ready",
+      "observed": "ready"
+    },
+    {
+      "name": "aws-cloud-identity",
+      "passed": true,
+      "expected": null,
+      "observed": {
+        "image_id": "ami-0helioslinux",
+        "instance_id": "i-00000000000000002",
+        "instance_profile": "helios-runtime-role",
+        "private_ip": "10.19.0.12",
+        "provider": "aws",
+        "public_ip": "",
+        "region": "us-east-1"
+      }
+    },
+    {
+      "name": "aws-phases-visible",
+      "passed": true,
+      "expected": null,
+      "observed": [
+        "authorize_start",
+        "authorize_passed",
+        "network_ready",
+        "instance_launched",
+        "instance_running",
+        "runtime_ready"
+      ]
+    },
+    {
+      "name": "aws-userdata-roundtrip",
+      "passed": true,
+      "expected": null,
+      "observed": "no embedded config"
+    },
+    {
+      "name": "aws-lease-short-lived",
+      "passed": true,
+      "expected": null,
+      "observed": 600
+    },
+    {
+      "name": "aws-no-long-lived-cloud-secret",
+      "passed": true,
+      "expected": null,
+      "observed": "profile-only reference"
+    },
+    {
+      "name": "aws-formal-register-entry",
+      "passed": true,
+      "expected": null,
+      "observed": {
+        "daemon_id": "helios-aws-aws-main",
+        "instance_profile": "helios-runtime-role",
+        "lease_path": "/etc/helios/lease.json",
+        "model_gateway_url": "http://127.0.0.1:49736/gateway",
+        "provider": "aws",
+        "region": "us-east-1",
+        "register_path": "/api/daemon/register",
+        "runtime_mode": "cloud",
+        "runtime_name": "aws-main",
+        "runtime_type": "cloud-aws",
+        "workspace_url": "http://127.0.0.1:49736"
+      }
+    },
+    {
+      "name": "aws-console-registration-marker",
+      "passed": true,
+      "expected": null,
+      "observed": "cloud-init: executing user-data\nhelios-agent: loaded short-lived task lease\nhelios-agent: registered through /api/daemon"
+    },
+    {
+      "name": "aws-new-agent-goes-cloud",
+      "passed": true,
+      "expected": null,
+      "observed": {
+        "agent_id": "agent-new-1",
+        "fallback": false,
+        "instance_id": "i-00000000000000002",
+        "location": "cloud",
+        "provider": "aws",
+        "runtime_id": "rt-8f68708dd9f9"
+      }
+    },
+    {
+      "name": "aws-existing-binding-kept",
+      "passed": true,
+      "expected": null,
+      "observed": {
+        "agent_id": "agent-legacy",
+        "fallback": false,
+        "location": "existing-binding",
+        "runtime_id": "rt-legacy-local"
+      }
+    },
+    {
+      "name": "aws-task-originator-can-exit",
+      "passed": true,
+      "expected": "provision_timeout",
+      "observed": {
+        "message": "task a4825605ff6e44ebaf9e80268e64d6e5 did not complete in 0.02s",
+        "reason": "provision_timeout"
+      }
+    },
+    {
+      "name": "aws-task-resumed-by-id",
+      "passed": true,
+      "expected": null,
+      "observed": {
+        "issue_id": "9628961754514ea09755f50a7d01c66b",
+        "receipt": {
+          "executed_at": "2026-11-26T09:14:56Z",
+          "instance": {
+            "image_id": "ami-0helioslinux",
+            "instance_id": "i-00000000000000002",
+            "instance_profile": "helios-runtime-role",
+            "private_ip": "10.19.0.12",
+            "provider": "aws",
+            "region": "us-east-1"
+          },
+          "result": {
+            "answer": 42,
+            "runtime": "aws-main",
+            "synthetic": "cloud-smoke"
+          },
+          "runtime_id": "rt-8f68708dd9f9",
+          "task_id": "a4825605ff6e44ebaf9e80268e64d6e5"
+        },
+        "status": "completed",
+        "task_id": "a4825605ff6e44ebaf9e80268e64d6e5"
+      }
+    },
+    {
+      "name": "aws-receipt-proves-execution-site",
+      "passed": true,
+      "expected": null,
+      "observed": {
+        "executed_at": "2026-11-26T09:14:56Z",
+        "instance": {
+          "image_id": "ami-0helioslinux",
+          "instance_id": "i-00000000000000002",
+          "instance_profile": "helios-runtime-role",
+          "private_ip": "10.19.0.12",
+          "provider": "aws",
+          "region": "us-east-1"
+        },
+        "result": {
+          "answer": 42,
+          "runtime": "aws-main",
+          "synthetic": "cloud-smoke"
+        },
+        "runtime_id": "rt-8f68708dd9f9",
+        "task_id": "a4825605ff6e44ebaf9e80268e64d6e5"
+      }
+    },
+    {
+      "name": "aws-teardown-terminated",
+      "passed": true,
+      "expected": null,
+      "observed": "terminated"
+    },
+    {
+      "name": "aws-no-active-instance",
+      "passed": true,
+      "expected": null,
+      "observed": []
+    },
+    {
+      "name": "aws-audit-no-orphan",
+      "passed": true,
+      "expected": null,
+      "observed": {
+        "orphan_count": 0,
+        "orphans": [],
+        "runtimes": [],
+        "workspace_id": "ws-helios"
+      }
+    },
+    {
+      "name": "aws-auth-insufficient-reason",
+      "passed": true,
+      "expected": null,
+      "observed": {
+        "actionable": "检查 IAM 策略是否包含该动作，或更换已授权的访问密钥。",
+        "message": "AWS GetCallerIdentity rejected: AuthFailure test account is not authorized for GetCallerIdentity",
+        "reason": "authorization_failed"
+      }
+    },
+    {
+      "name": "aws-auth-failure-no-instance",
+      "passed": true,
+      "expected": null,
+      "observed": "failed"
+    },
+    {
+      "name": "aws-auth-failure-bills-nothing",
+      "passed": true,
+      "expected": 2,
+      "observed": 2
+    },
+    {
+      "name": "aws-retry-after-auth-ready",
+      "passed": true,
+      "expected": "ready",
+      "observed": "ready"
+    },
+    {
+      "name": "aws-single-billable-instance",
+      "passed": true,
+      "expected": 1,
+      "observed": 1
+    },
+    {
+      "name": "aws-provision-timeout-reason",
+      "passed": true,
+      "expected": null,
+      "observed": {
+        "actionable": "运行 retry 续接同一实例；若地域/配额问题持续，先在云控制台排查后再重试。",
+        "message": "instance i-00000000000000004 did not become running within 0.6s",
+        "reason": "provision_timeout"
+      }
+    },
+    {
+      "name": "aws-timeout-keeps-instance-id",
+      "passed": true,
+      "expected": null,
+      "observed": "failed"
+    },
+    {
+      "name": "aws-cancel-reclaims-instance",
+      "passed": true,
+      "expected": null,
+      "observed": "instance still active"
+    },
+    {
+      "name": "aws-cancel-audit-clean",
+      "passed": true,
+      "expected": null,
+      "observed": {
+        "orphan_count": 0,
+        "orphans": [],
+        "runtimes": [],
+        "workspace_id": "ws-helios"
+      }
+    },
+    {
+      "name": "aws-retry-same-instance",
+      "passed": true,
+      "expected": null,
+      "observed": {
+        "activation_id": "act-cf6ff7be8e73",
+        "attempts": 2,
+        "cloud_account": {
+          "account": "123456789012",
+          "arn": "arn:aws:iam::123456789012:user/helios-test",
+          "user_id": "AIDAFakeHeliosUser"
+        },
+        "console_output": "cloud-init: executing user-data\nhelios-agent: loaded short-lived task lease\nhelios-agent: registered through /api/daemon/register\nhelios-agent: runtime online",
+        "created_at": "2026-11-26T09:14:58Z",
+        "error": null,
+        "events": [
+          {
+            "at_ns": 1795684498375868000,
+            "event": "authorize_start"
+          },
+          {
+            "account": {
+              "account": "123456789012",
+              "arn": "arn:aws:iam::123456789012:user/helios-test",
+              "user_id": "AIDAFakeHeliosUser"
+            },
+            "at_ns": 1795684498383422000,
+            "event": "authorize_passed"
+          },
+          {
+            "at_ns": 1795684498393293000,
+            "event": "network_ready",
+            "network": {
+              "security_group_ids": [
+                "sg-helios-a"
+              ],
+              "subnet_id": "subnet-helios"
+            }
+          },
+          {
+            "at_ns": 1795684498402944000,
+            "client_token": "c012047d955a13136b25dba8da3e32da",
+            "event": "instance_launched",
+            "instance_id": "i-00000000000000005"
+          },
+          {
+            "actionable": "运行 retry 续接同一实例；若地域/配额问题持续，先在云控制台排查后再重试。",
+            "at_ns": 1795684499038102000,
+            "event": "provision_failed",
+            "message": "instance i-00000000000000005 did not become running within 0.6s",
+            "reason": "provision_timeout"
+          },
+          {
+            "at_ns": 1795684499140921000,
+            "event": "authorize_start"
+          },
+          {
+            "account": {
+              "account": "123456789012",
+              "arn": "arn:aws:iam::123456789012:user/helios-test",
+              "user_id": "AIDAFakeHeliosUser"
+            },
+            "at_ns": 1795684499149536000,
+            "event": "authorize_passed"
+          },
+          {
+            "at_ns": 1795684499160585000,
+            "event": "network_ready",
+            "network": {
+              "security_group_ids": [
+                "sg-helios-a"
+              ],
+              "subnet_id": "subnet-helios"
+            }
+          },
+          {
+            "at_ns": 1795684499161370000,
+            "event": "resume_existing_instance",
+            "instance_id": "i-00000000000000005"
+          },
+          {
+            "at_ns": 1795684499166434000,
+            "event": "instance_running"
+          },
+          {
+            "at_ns": 1795684499302965000,
+            "event": "runtime_ready",
+            "identity": {
+              "image_id": "ami-0helioslinux",
+              "instance_id": "i-00000000000000005",
+              "instance_profile": "helios-runtime-role",
+              "private_ip": "10.19.0.21",
+              "provider": "aws",
+              "public_ip": "",
+              "region": "us-east-1"
+            }
+          }
+        ],
+        "execution_log": [
+          "cloud-init: executing user-data",
+          "helios-agent: loaded short-lived task lease",
+          "helios-agent: registered through /api/daemon/register",
+          "helios-agent: runtime online"
+        ],
+        "identity": {
+          "image_id": "ami-0helioslinux",
+          "instance_id": "i-00000000000000005",
+          "instance_profile": "helios-runtime-role",
+          "private_ip": "10.19.0.21",
+          "provider": "aws",
+          "public_ip": "",
+          "region": "us-east-1"
+        },
+        "instance_id": "i-00000000000000005",
+        "lease_expires_at": 1795685098,
+        "lease_sha256": "15503df9da43d95fb62424a38159180d95b902db87644d4909a1c25f2a7e977d",
+        "name": "aws-retry",
+        "network": {
+          "security_group_ids": [
+            "sg-helios-a"
+          ],
+          "subnet_id": "subnet-helios"
+        },
+        "phase": "ready",
+        "provider": "aws",
+        "region": "us-east-1",
+        "task": null,
+        "updated_at": "2026-11-26T09:14:59Z",
+        "user_data_sha256": "e8e6faa28814d49fc7416ea900c21aa92af4b8e18cc98dec273e5971c84404a7",
+        "workspace_id": "ws-helios",
+        "workspace_runtime_id": "rt-ef81473c6d58"
+      }
+    },
+    {
+      "name": "aws-resume-never-relaunches",
+      "passed": true,
+      "expected": null,
+      "observed": {
+        "launched_delta": 1
+      }
+    },
+    {
+      "name": "aws-cloud-down-explicit-unavailable",
+      "passed": true,
+      "expected": null,
+      "observed": {
+        "actionable": "修复云运行时后再创建 Agent；平台不会静默回退到本地执行。",
+        "message": "cloud runtime aws-fallback is terminated",
+        "reason": "runtime_unavailable"
+      }
+    },
+    {
+      "name": "aws-never-falls-back-to-local",
+      "passed": true,
+      "expected": null,
+      "observed": {
+        "actionable": "修复云运行时后再创建 Agent；平台不会静默回退到本地执行。",
+        "message": "cloud runtime aws-fallback is terminated",
+        "reason": "runtime_unavailable"
+      }
+    },
+    {
+      "name": "aliyun-tampered-signature",
+      "passed": true,
+      "expected": "authorization_failed",
+      "observed": "authorization_failed"
+    },
+    {
+      "name": "aliyun-client-token-single-instance",
+      "passed": true,
+      "expected": null,
+      "observed": {
+        "first": "i-bp00000000000001",
+        "second": "i-bp00000000000001",
+        "launches": 1
+      }
+    },
+    {
+      "name": "aliyun-phase-ready",
+      "passed": true,
+      "expected": "ready",
+      "observed": "ready"
+    },
+    {
+      "name": "aliyun-cloud-identity",
+      "passed": true,
+      "expected": null,
+      "observed": {
+        "image_id": "aliyun_helios_linux",
+        "instance_id": "i-bp00000000000002",
+        "instance_profile": "helios-runtime-ram-role",
+        "private_ip": "10.18.0.12",
+        "provider": "aliyun",
+        "public_ip": "203.0.113.3",
+        "region": "cn-hangzhou"
+      }
+    },
+    {
+      "name": "aliyun-phases-visible",
+      "passed": true,
+      "expected": null,
+      "observed": [
+        "authorize_start",
+        "authorize_passed",
+        "network_ready",
+        "instance_launched",
+        "instance_running",
+        "runtime_ready"
+      ]
+    },
+    {
+      "name": "aliyun-userdata-roundtrip",
+      "passed": true,
+      "expected": null,
+      "observed": "no embedded config"
+    },
+    {
+      "name": "aliyun-lease-short-lived",
+      "passed": true,
+      "expected": null,
+      "observed": 600
+    },
+    {
+      "name": "aliyun-no-long-lived-cloud-secret",
+      "passed": true,
+      "expected": null,
+      "observed": "profile-only reference"
+    },
+    {
+      "name": "aliyun-formal-register-entry",
+      "passed": true,
+      "expected": null,
+      "observed": {
+        "daemon_id": "helios-aliyun-aliyun-main",
+        "instance_profile": "helios-runtime-ram-role",
+        "lease_path": "/etc/helios/lease.json",
+        "model_gateway_url": "http://127.0.0.1:49736/gateway",
+        "provider": "aliyun",
+        "region": "cn-hangzhou",
+        "register_path": "/api/daemon/register",
+        "runtime_mode": "cloud",
+        "runtime_name": "aliyun-main",
+        "runtime_type": "cloud-aliyun",
+        "workspace_url": "http://127.0.0.1:49736"
+      }
+    },
+    {
+      "name": "aliyun-new-agent-goes-cloud",
+      "passed": true,
+      "expected": null,
+      "observed": {
+        "agent_id": "agent-new-1",
+        "fallback": false,
+        "instance_id": "i-bp00000000000002",
+        "location": "cloud",
+        "provider": "aliyun",
+        "runtime_id": "rt-ec3350c237b8"
+      }
+    },
+    {
+      "name": "aliyun-existing-binding-kept",
+      "passed": true,
+      "expected": null,
+      "observed": {
+        "agent_id": "agent-legacy",
+        "fallback": false,
+        "location": "existing-binding",
+        "runtime_id": "rt-legacy-local"
+      }
+    },
+    {
+      "name": "aliyun-task-originator-can-exit",
+      "passed": true,
+      "expected": "provision_timeout",
+      "observed": {
+        "message": "task 6e72cac93a794adda3c4f2ad8e558eed did not complete in 0.02s",
+        "reason": "provision_timeout"
+      }
+    },
+    {
+      "name": "aliyun-task-resumed-by-id",
+      "passed": true,
+      "expected": null,
+      "observed": {
+        "issue_id": "d4308b4dbf9f43a1919bbf7dae335d6a",
+        "receipt": {
+          "executed_at": "2026-11-26T09:15:00Z",
+          "instance": {
+            "image_id": "aliyun_helios_linux",
+            "instance_id": "i-bp00000000000002",
+            "instance_profile": "helios-runtime-ram-role",
+            "private_ip": "10.18.0.12",
+            "provider": "aliyun",
+            "region": "cn-hangzhou"
+          },
+          "result": {
+            "answer": 42,
+            "runtime": "aliyun-main",
+            "synthetic": "cloud-smoke"
+          },
+          "runtime_id": "rt-ec3350c237b8",
+          "task_id": "6e72cac93a794adda3c4f2ad8e558eed"
+        },
+        "status": "completed",
+        "task_id": "6e72cac93a794adda3c4f2ad8e558eed"
+      }
+    },
+    {
+      "name": "aliyun-receipt-proves-execution-site",
+      "passed": true,
+      "expected": null,
+      "observed": {
+        "executed_at": "2026-11-26T09:15:00Z",
+        "instance": {
+          "image_id": "aliyun_helios_linux",
+          "instance_id": "i-bp00000000000002",
+          "instance_profile": "helios-runtime-ram-role",
+          "private_ip": "10.18.0.12",
+          "provider": "aliyun",
+          "region": "cn-hangzhou"
+        },
+        "result": {
+          "answer": 42,
+          "runtime": "aliyun-main",
+          "synthetic": "cloud-smoke"
+        },
+        "runtime_id": "rt-ec3350c237b8",
+        "task_id": "6e72cac93a794adda3c4f2ad8e558eed"
+      }
+    },
+    {
+      "name": "aliyun-teardown-terminated",
+      "passed": true,
+      "expected": null,
+      "observed": "terminated"
+    },
+    {
+      "name": "aliyun-no-active-instance",
+      "passed": true,
+      "expected": null,
+      "observed": []
+    },
+    {
+      "name": "aliyun-audit-no-orphan",
+      "passed": true,
+      "expected": null,
+      "observed": {
+        "orphan_count": 0,
+        "orphans": [],
+        "runtimes": [],
+        "workspace_id": "ws-helios"
+      }
+    },
+    {
+      "name": "aliyun-auth-insufficient-reason",
+      "passed": true,
+      "expected": null,
+      "observed": {
+        "actionable": "检查 RAM 策略是否包含该 ECS/VPC 动作，或更换已授权的 AccessKey。",
+        "message": "Aliyun DescribeRegions rejected: Forbidden.RAM test RAM user lacks DescribeRegions",
+        "reason": "authorization_failed"
+      }
+    },
+    {
+      "name": "aliyun-auth-failure-no-instance",
+      "passed": true,
+      "expected": null,
+      "observed": "failed"
+    },
+    {
+      "name": "aliyun-auth-failure-bills-nothing",
+      "passed": true,
+      "expected": 2,
+      "observed": 2
+    },
+    {
+      "name": "aliyun-retry-after-auth-ready",
+      "passed": true,
+      "expected": "ready",
+      "observed": "ready"
+    },
+    {
+      "name": "aliyun-single-billable-instance",
+      "passed": true,
+      "expected": 1,
+      "observed": 1
+    },
+    {
+      "name": "aliyun-provision-timeout-reason",
+      "passed": true,
+      "expected": null,
+      "observed": {
+        "actionable": "运行 retry 续接同一实例；若地域/配额问题持续，先在云控制台排查后再重试。",
+        "message": "instance i-bp00000000000004 did not become running within 0.6s",
+        "reason": "provision_timeout"
+      }
+    },
+    {
+      "name": "aliyun-timeout-keeps-instance-id",
+      "passed": true,
+      "expected": null,
+      "observed": "failed"
+    },
+    {
+      "name": "aliyun-cancel-reclaims-instance",
+      "passed": true,
+      "expected": null,
+      "observed": "instance still active"
+    },
+    {
+      "name": "aliyun-cancel-audit-clean",
+      "passed": true,
+      "expected": null,
+      "observed": {
+        "orphan_count": 0,
+        "orphans": [],
+        "runtimes": [],
+        "workspace_id": "ws-helios"
+      }
+    },
+    {
+      "name": "aliyun-retry-same-instance",
+      "passed": true,
+      "expected": null,
+      "observed": {
+        "activation_id": "act-18b63deaa61b",
+        "attempts": 2,
+        "cloud_account": {
+          "account": "LTAIfakeHelios00001",
+          "authorized": true,
+          "region": "cn-hangzhou"
+        },
+        "created_at": "2026-11-26T09:15:03Z",
+        "error": null,
+        "events": [
+          {
+            "at_ns": 1795684503299268000,
+            "event": "authorize_start"
+          },
+          {
+            "account": {
+              "account": "LTAIfakeHelios00001",
+              "authorized": true,
+              "region": "cn-hangzhou"
+            },
+            "at_ns": 1795684503306670000,
+            "event": "authorize_passed"
+          },
+          {
+            "at_ns": 1795684503317050000,
+            "event": "network_ready",
+            "network": {
+              "security_group_ids": [
+                "sg-helios-b"
+              ],
+              "subnet_id": "vsw-helios"
+            }
+          },
+          {
+            "at_ns": 1795684503331108000,
+            "client_token": "4805e3ef8a6505c56f238412e105c2af",
+            "event": "instance_launched",
+            "instance_id": "i-bp00000000000005"
+          },
+          {
+            "actionable": "运行 retry 续接同一实例；若地域/配额问题持续，先在云控制台排查后再重试。",
+            "at_ns": 1795684503972503000,
+            "event": "provision_failed",
+            "message": "instance i-bp00000000000005 did not become running within 0.6s",
+            "reason": "provision_timeout"
+          },
+          {
+            "at_ns": 1795684504053835000,
+            "event": "authorize_start"
+          },
+          {
+            "account": {
+              "account": "LTAIfakeHelios00001",
+              "authorized": true,
+              "region": "cn-hangzhou"
+            },
+            "at_ns": 1795684504061407000,
+            "event": "authorize_passed"
+          },
+          {
+            "at_ns": 1795684504070911000,
+            "event": "network_ready",
+            "network": {
+              "security_group_ids": [
+                "sg-helios-b"
+              ],
+              "subnet_id": "vsw-helios"
+            }
+          },
+          {
+            "at_ns": 1795684504071568000,
+            "event": "resume_existing_instance",
+            "instance_id": "i-bp00000000000005"
+          },
+          {
+            "at_ns": 1795684504076274000,
+            "event": "instance_running"
+          },
+          {
+            "at_ns": 1795684504207666000,
+            "event": "runtime_ready",
+            "identity": {
+              "image_id": "aliyun_helios_linux",
+              "instance_id": "i-bp00000000000005",
+              "instance_profile": "helios-runtime-ram-role",
+              "private_ip": "10.18.0.22",
+              "provider": "aliyun",
+              "public_ip": "203.0.113.13",
+              "region": "cn-hangzhou"
+            }
+          }
+        ],
+        "execution_log": [
+          "cloud-init: executing user-data",
+          "helios-agent: loaded short-lived task lease",
+          "helios-agent: registered through /api/daemon/register",
+          "helios-agent: runtime online"
+        ],
+        "identity": {
+          "image_id": "aliyun_helios_linux",
+          "instance_id": "i-bp00000000000005",
+          "instance_profile": "helios-runtime-ram-role",
+          "private_ip": "10.18.0.22",
+          "provider": "aliyun",
+          "public_ip": "203.0.113.13",
+          "region": "cn-hangzhou"
+        },
+        "instance_id": "i-bp00000000000005",
+        "lease_expires_at": 1795685103,
+        "lease_sha256": "156499c52707036fddb2cb43d453262318adf966ff38e6c1a249ee5ef5004822",
+        "name": "aliyun-retry",
+        "network": {
+          "security_group_ids": [
+            "sg-helios-b"
+          ],
+          "subnet_id": "vsw-helios"
+        },
+        "phase": "ready",
+        "provider": "aliyun",
+        "region": "cn-hangzhou",
+        "task": null,
+        "updated_at": "2026-11-26T09:15:04Z",
+        "user_data_sha256": "57c57bad591b70dd4471dbb97c97cbecf17066e747ab1c6af9897c2a1a101ae2",
+        "workspace_id": "ws-helios",
+        "workspace_runtime_id": "rt-37fcca5a8f94"
+      }
+    },
+    {
+      "name": "aliyun-resume-never-relaunches",
+      "passed": true,
+      "expected": null,
+      "observed": {
+        "launched_delta": 1
+      }
+    },
+    {
+      "name": "aliyun-cloud-down-explicit-unavailable",
+      "passed": true,
+      "expected": null,
+      "observed": {
+        "actionable": "修复云运行时后再创建 Agent；平台不会静默回退到本地执行。",
+        "message": "cloud runtime aliyun-fallback is terminated",
+        "reason": "runtime_unavailable"
+      }
+    },
+    {
+      "name": "aliyun-never-falls-back-to-local",
+      "passed": true,
+      "expected": null,
+      "observed": {
+        "actionable": "修复云运行时后再创建 Agent；平台不会静默回退到本地执行。",
+        "message": "cloud runtime aliyun-fallback is terminated",
+        "reason": "runtime_unavailable"
+      }
+    }
+  ]
+}

@@ -1,0 +1,48 @@
+name: Cloud runtime E2E
+run-name: Cloud runtime E2E · ${{ inputs.provider || 'both' }}
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - cloud_runtime/**
+      - tools/verify_cloud_runtime.py
+      - .github/workflows/cloud-runtime.yml
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      provider:
+        description: Cloud provider flow to exercise
+        type: choice
+        options:
+          - both
+          - aws
+          - aliyun
+        default: both
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Provision, task return, reclaim (fake cloud)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12.12'
+      - name: End-to-end cloud runtime acceptance
+        run: python tools/verify_cloud_runtime.py --provider "${{ inputs.provider || 'both' }}"
+      - name: Upload evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: cloud-runtime-evidence-${{ inputs.provider || 'both' }}
+          path: evidence/cloud-runtime/*.json
+          if-no-files-found: error
+          retention-days: 30
