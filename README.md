@@ -29,3 +29,13 @@ python3 tools/verify_q0.py --scenario wrong-source --report evidence/q0-wrong-so
 [真实模型网关复验与 Q1 准入](docs/q0-model-gateway.md)记录了 DSH 实际推理请求的授权、独立接收端证据，以及尚待关闭的 Q0 门禁。
 
 [隔离试点部署与验收](docs/q0-pilot.md)提供了 Linux 试点的复跑入口和部署、接收端证据。
+
+## 云运行时（AWS EC2 / 阿里云 ECS）
+
+云运行时控制面在 `cloud_runtime/`，端到端验收在 `tools/verify_cloud_runtime.py`，仅用标准库、无需 Docker 或云账号，在进程内假云上走通两家同一套用户流程：开通与默认运行时、任务回传、授权不足/超时重试、取消回收与孤儿审计、短期租约与无长期云密钥边界、SigV4 官方向量。
+
+```sh
+python3 tools/verify_cloud_runtime.py
+```
+
+[云运行时交付与复跑说明](docs/cloud-runtime.md)区分模拟验证与真实云实测，并列出真实云所需的账号权限、地域、配额、责任方与当前上游权限缺口。模拟证据快照见 [cloud-runtime-e2e-evidence.json](docs/cloud-runtime-e2e-evidence.json)。
