@@ -2,7 +2,21 @@
 
 工作区管理员选择云厂商并完成账号授权、地域与网络配置后，框架自动开通 Linux 实例、在首启时完成 Agent 配置并通过正式守护进程入口自注册，随后可设为工作区默认运行时。已有 Agent 沿用原绑定，新建 Agent 才走云端；云端不可用时显式报错，绝不静默回退到本地执行。
 
-## 交付边界与上游关系
+## 仓库关系与产品落地位置（当前方案）
+
+上游 `multica-ai/multica` 与 `deepseek-harness` 已被 fork 到工作区可写的 GitHub 组织，正式产品集成落在 fork，不再只存在于工作台原型。三个仓库的职责划分：
+
+| 仓库 | 角色 | 本特性的内容 |
+| --- | --- | --- |
+| `fREEDtICE/multica`（multica fork） | 产品本体，控制面与入口 | `server/internal/cloudruntime/provision/` 内置开通驱动（EC2 SigV4、ECS HMAC-SHA1、cloud-init、幂等、回收、短期租约）；`handler` 在无 `MULTICA_CLOUD_URL` 且 `MULTICA_CLOUD_BUILTIN=true` 时启用，托管 Fleet 模式不变；前端节点契约新增可选 `provider` 字段 |
+| `fREEDtICE/deepseek-harness`（DSH fork） | 执行侧 | 注册经既有 `/api/daemon/register`，与厂商无关，本期无改动；仅当基线测试证明缺陷在 DSH 本体时才在此提交 |
+| `software-delivery-workbench`（本仓库） | 原型与回归资产 | 下文的 Python `cloud_runtime/` 是签约前的可执行原型和行为规格，`tools/verify_cloud_runtime.py` 保留为独立的假云端到端回归 |
+
+multica fork 的 Go 实现与本原型共用同一套验收口径：两家同一流程、SigV4 锚定官方测试向量、授权不足/超时重试/取消回收、无长期云密钥、无静默本地回退。Go 版内置驱动通过进程内 httptest 假云验证（`provision` 包），handler 层集成测试在具备 Postgres 的 CI 中运行。
+
+真实云实测仍需两家授权测试账号、地域与配额；本环境无云凭据，fork 与本仓库当前证据均为模拟验证（`mode=fake-cloud` / Go httptest fake）。
+
+## 交付边界与上游关系（原型阶段，保留存档）
 
 本仓库（软件交付工作台）交付可审查的控制面、云厂商适配器、Linux 首启脚本和端到端验收，全部仅依赖 Python 标准库，无需 Docker。
 
