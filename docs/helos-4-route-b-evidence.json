@@ -1,0 +1,50 @@
+{
+  "issue": "HELIOS-4",
+  "scope": "Route B role-based cloud account connection for the built-in AWS EC2 / Alibaba ECS runtime provisioner",
+  "repository": "fREEDtICE/multica",
+  "branch": "feat/cloud-runtime-aws-aliyun",
+  "captured_at": "2026-11-26",
+  "mode": "in-process fake cloud with real SigV4 / Aliyun HMAC-SHA1 signature verification; no real cloud credentials available in this environment",
+  "backend": {
+    "build": "go build ./...: OK (go1.25.3)",
+    "vet": "go vet ./internal/cloudruntime/... ./internal/handler/... ./cmd/server/...: clean",
+    "packages": [
+      "github.com/multica-ai/multica/server/internal/cloudruntime",
+      "github.com/multica-ai/multica/server/internal/cloudruntime/provision",
+      "github.com/multica-ai/multica/server/internal/handler"
+    ],
+    "route_b_tests": [
+      "TestRouteBEmptyWorkspaceGate (aws, aliyun)",
+      "TestRouteBDeploymentIdentityMissing",
+      "TestRouteBVerificationFailureThenRetry (aws, aliyun)",
+      "TestRouteBProvisionRunsOnShortLivedRoleCredentials (aws, aliyun)",
+      "TestRouteBDefaultRuntime",
+      "TestRouteBCancelReclaimsInFlightLaunch",
+      "TestRouteBCleanupAfterAuthorizationLapse",
+      "TestRouteBAccountDisconnectProtection",
+      "TestBuiltinCloudRuntimeRouteBFlow (aws, aliyun, through real HTTP handlers)"
+    ],
+    "result": "all passing; fake cloud rejects requests whose signing key does not match the deployment identity or the assumed-role session credentials"
+  },
+  "frontend": {
+    "typecheck": "pnpm --filter @multica/core typecheck and @multica/views typecheck: clean",
+    "vitest": "vitest run runtimes locales: 33 files, 820 tests passing, including 6 new Route B component/contract tests",
+    "eslint": "changed cloud runtime components and tests: clean",
+    "i18n": "cloud_runtime key parity verified across en, es, fr, ja, ko, ru, zh-Hans, zh-Hant",
+    "new_tests": [
+      "cloud-account-connect.test.tsx (trust info, verify success/failure, identity missing)",
+      "cloud-runtime-dialog.test.tsx (blank workspace wizard, failed launch retry, cleanup queue)",
+      "client.test.ts Route B endpoint contracts"
+    ]
+  },
+  "security_assertions": [
+    "only role ARN and verification results are persisted; no long-lived AK/SK is stored",
+    "node launch signs with short-lived AssumeRole credentials, asserted via fake cloud key checks",
+    "user-data contains no deployment key, session key or session token",
+    "account connection and provisioning return 409 deployment_identity_missing when the self-hosted identity is absent"
+  ],
+  "not_verified_here": [
+    "real AWS and Alibaba Cloud account flows, quotas, regions, images and console-side role creation",
+    "synthetic task delivery with the origin closed, which needs a running self-hosted deployment and real cloud accounts"
+  ]
+}
